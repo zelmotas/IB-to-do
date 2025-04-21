@@ -1,121 +1,104 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { setCookie, getCookie, deleteCookie } from "cookies-next"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import type { User, Session, AuthError } from "@supabase/supabase-js"
+import { useRouter } from "next/navigation"
+import { getSupabaseClient } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
-
-interface User {
-  id: string
-  email: string
-  name?: string
-}
 
 interface AuthContextType {
   user: User | null
+  session: Session | null
   isLoading: boolean
+  signUp: (email: string, password: string, metadata?: { full_name?: string }) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
-  signInWithGoogle: () => Promise<void>
-  signInWithGithub: () => Promise<void>
+  resetPassword: (email: string) => Promise<void>
+  updatePassword: (password: string) => Promise<void>
+  updateProfile: (profile: { full_name?: string; avatar_url?: string }) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Store user credentials in localStorage for demo purposes
-// In a real app, this would be handled by a backend
-const USERS_STORAGE_KEY = "ib_tracker_users"
-
-interface StoredUser extends User {
-  password: string
-}
-
-function getStoredUsers(): StoredUser[] {
-  if (typeof window === "undefined") return []
-
-  const stored = localStorage.getItem(USERS_STORAGE_KEY)
-  return stored ? JSON.parse(stored) : []
-}
-
-function storeUser(user: StoredUser) {
-  const users = getStoredUsers()
-  const existingUserIndex = users.findIndex((u) => u.email === user.email)
-
-  if (existingUserIndex >= 0) {
-    users[existingUserIndex] = user
-  } else {
-    users.push(user)
-  }
-
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users))
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
   const { toast } = useToast()
+  const supabase = getSupabaseClient()
 
-  // Check for existing session on mount
   useEffect(() => {
-    const checkSession = async () => {
+    const setupAuth = async () => {
       try {
-        const userCookie = getCookie("user")
-        if (userCookie) {
-          const parsedUser = JSON.parse(userCookie as string)
-          setUser(parsedUser)
+        // Check active session
+        const {
+          data: { session: activeSession },
+        } = await supabase.auth.getSession()
+        setSession(activeSession)
+        setUser(activeSession?.user ?? null)
 
-          // Initialize with a default user if none exists
-          const users = getStoredUsers()
-          if (users.length === 0) {
-            storeUser({
-              id: "demo",
-              email: "demo@example.com",
-              password: "password",
-            })
+        // Listen for auth changes
+        const {
+          data: { subscription },
+        } = await supabase.auth.onAuthStateChange((_event, newSession) => {
+          setSession(newSession)
+          setUser(newSession?.user ?? null)
+
+          // Refresh the page to update server-side data
+          if (_event === "SIGNED_IN" || _event === "TOKEN_REFRESHED") {
+            router.refresh()
           }
+        })
+
+        return () => {
+          subscription.unsubscribe()
         }
       } catch (error) {
-        console.error("Error checking session:", error)
+        console.error("Error setting up auth:", error)
+        toast({
+          title: "Authentication Error",
+          description: "There was a problem connecting to the authentication service.",
+          variant: "destructive",
+        })
       } finally {
         setIsLoading(false)
       }
     }
 
-    checkSession()
-  }, [])
+    setupAuth()
+  }, [router, toast, supabase.auth])
 
-  const signIn = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, metadata?: { full_name?: string }) => {
     setIsLoading(true)
     try {
-      // Find user in stored users
-      const users = getStoredUsers()
-      const foundUser = users.find((u) => u.email === email && u.password === password)
+      const { error, data } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: metadata,
+        },
+      })
 
-      if (!foundUser) {
-        throw new Error("Invalid email or password")
+      if (error) throw error
+
+      toast({
+        title: "Account created",
+        description: "Please check your email to confirm your account.",
+      })
+
+      // If email confirmation is disabled, user will be signed in automatically
+      if (data.session) {
+        router.push("/dashboard")
+      } else {
+        router.push("/auth/verify-email")
       }
-
-      // Create user object without password
-      const { password: _, ...userWithoutPassword } = foundUser
-      setUser(userWithoutPassword)
-
-      // Store in cookie
-      setCookie("user", JSON.stringify(userWithoutPassword), {
-        maxAge: 30 * 24 * 60 * 60, // 30 days
-        path: "/",
-      })
-
-      toast({
-        title: "Connexion réussie",
-        description: `Bienvenue, ${email}!`,
-      })
-
-      return
     } catch (error) {
-      console.error("Sign in error:", error)
+      const authError = error as AuthError
+      console.error("Error signing up:", authError)
       toast({
-        title: "Erreur de connexion",
-        description: "Email ou mot de passe incorrect",
+        title: "Sign up failed",
+        description: authError.message || "There was a problem creating your account.",
         variant: "destructive",
       })
       throw error
@@ -124,48 +107,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const signUp = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      // Check if user already exists
-      const users = getStoredUsers()
-      const existingUser = users.find((u) => u.email === email)
-
-      if (existingUser) {
-        throw new Error("User already exists")
-      }
-
-      // Create new user
-      const newUser: StoredUser = {
-        id: Date.now().toString(),
+      const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
-      }
-
-      // Store user
-      storeUser(newUser)
-
-      // Create user object without password
-      const { password: _, ...userWithoutPassword } = newUser
-      setUser(userWithoutPassword)
-
-      // Store in cookie
-      setCookie("user", JSON.stringify(userWithoutPassword), {
-        maxAge: 30 * 24 * 60 * 60, // 30 days
-        path: "/",
       })
+
+      if (error) throw error
 
       toast({
-        title: "Compte créé avec succès",
-        description: `Bienvenue, ${email}!`,
+        title: "Welcome back!",
+        description: "You have successfully signed in.",
       })
 
-      return
+      router.push("/dashboard")
+      router.refresh()
     } catch (error) {
-      console.error("Sign up error:", error)
+      const authError = error as AuthError
+      console.error("Error signing in:", authError)
       toast({
-        title: "Erreur d'inscription",
-        description: error instanceof Error ? error.message : "Une erreur est survenue",
+        title: "Sign in failed",
+        description: authError.message || "Invalid email or password.",
         variant: "destructive",
       })
       throw error
@@ -177,76 +141,112 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     setIsLoading(true)
     try {
-      // Clear user state
-      setUser(null)
-
-      // Remove cookie
-      deleteCookie("user", { path: "/" })
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
 
       toast({
-        title: "Déconnexion réussie",
-        description: "À bientôt!",
+        title: "Signed out",
+        description: "You have been successfully signed out.",
+      })
+
+      router.push("/")
+      router.refresh()
+    } catch (error) {
+      console.error("Error signing out:", error)
+      toast({
+        title: "Sign out failed",
+        description: "There was a problem signing you out.",
+        variant: "destructive",
       })
     } finally {
       setIsLoading(false)
     }
   }
 
-  const signInWithGoogle = async () => {
+  const resetPassword = async (email: string) => {
     setIsLoading(true)
     try {
-      // In a real app, this would redirect to Google OAuth
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Create a demo Google user
-      const googleUser = {
-        id: "google-" + Date.now().toString(),
-        email: "google-user@example.com",
-        name: "Google User",
-      }
-
-      setUser(googleUser)
-
-      // Store in cookie
-      setCookie("user", JSON.stringify(googleUser), {
-        maxAge: 30 * 24 * 60 * 60, // 30 days
-        path: "/",
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/update-password`,
       })
+
+      if (error) throw error
 
       toast({
-        title: "Connexion Google réussie",
-        description: `Bienvenue, ${googleUser.name}!`,
+        title: "Password reset email sent",
+        description: "Check your email for a link to reset your password.",
       })
+    } catch (error) {
+      const authError = error as AuthError
+      console.error("Error resetting password:", authError)
+      toast({
+        title: "Password reset failed",
+        description: authError.message || "There was a problem sending the password reset email.",
+        variant: "destructive",
+      })
+      throw error
     } finally {
       setIsLoading(false)
     }
   }
 
-  const signInWithGithub = async () => {
+  const updatePassword = async (password: string) => {
     setIsLoading(true)
     try {
-      // In a real app, this would redirect to GitHub OAuth
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Create a demo GitHub user
-      const githubUser = {
-        id: "github-" + Date.now().toString(),
-        email: "github-user@example.com",
-        name: "GitHub User",
-      }
-
-      setUser(githubUser)
-
-      // Store in cookie
-      setCookie("user", JSON.stringify(githubUser), {
-        maxAge: 30 * 24 * 60 * 60, // 30 days
-        path: "/",
+      const { error } = await supabase.auth.updateUser({
+        password,
       })
+
+      if (error) throw error
 
       toast({
-        title: "Connexion GitHub réussie",
-        description: `Bienvenue, ${githubUser.name}!`,
+        title: "Password updated",
+        description: "Your password has been successfully updated.",
       })
+
+      router.push("/dashboard")
+    } catch (error) {
+      const authError = error as AuthError
+      console.error("Error updating password:", authError)
+      toast({
+        title: "Password update failed",
+        description: authError.message || "There was a problem updating your password.",
+        variant: "destructive",
+      })
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const updateProfile = async (profile: { full_name?: string; avatar_url?: string }) => {
+    setIsLoading(true)
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: profile,
+      })
+
+      if (error) throw error
+
+      // Also update the profile in the users table
+      if (user) {
+        const { error: profileError } = await supabase.from("users").update(profile).eq("id", user.id)
+
+        if (profileError) throw profileError
+      }
+
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been successfully updated.",
+      })
+    } catch (error) {
+      console.error("Error updating profile:", error)
+      toast({
+        title: "Profile update failed",
+        description: "There was a problem updating your profile.",
+        variant: "destructive",
+      })
+      throw error
     } finally {
       setIsLoading(false)
     }
@@ -256,12 +256,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        session,
         isLoading,
-        signIn,
         signUp,
+        signIn,
         signOut,
-        signInWithGoogle,
-        signInWithGithub,
+        resetPassword,
+        updatePassword,
+        updateProfile,
       }}
     >
       {children}

@@ -11,6 +11,7 @@ import { useLanguage } from "@/contexts/language-context"
 import { useAuth } from "@/contexts/auth-context"
 import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { PasswordReset } from "@/components/auth/password-reset"
 
 interface AuthFormProps {
   onSuccess?: () => void
@@ -22,6 +23,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [showPasswordReset, setShowPasswordReset] = useState(false)
   const { t } = useLanguage()
   const { signIn, signUp, signInWithGoogle, signInWithGithub } = useAuth()
 
@@ -34,7 +36,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
       await signIn(email, password)
       if (onSuccess) onSuccess()
     } catch (err) {
-      setError(t("auth_error"))
+      setError(t("Authentication Error"))
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -47,7 +49,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
     setIsLoading(true)
 
     if (password !== confirmPassword) {
-      setError(t("passwords_dont_match"))
+      setError(t("Passwords don't match"))
       setIsLoading(false)
       return
     }
@@ -59,7 +61,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
       if (err instanceof Error) {
         setError(err.message)
       } else {
-        setError(t("auth_error"))
+        setError(t("Authentication Error"))
       }
       console.error(err)
     } finally {
@@ -79,21 +81,25 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
       }
       if (onSuccess) onSuccess()
     } catch (err) {
-      setError(t("auth_error"))
+      setError(t("Authentication Error"))
       console.error(err)
     } finally {
       setIsLoading(false)
     }
   }
 
+  if (showPasswordReset) {
+    return <PasswordReset onBack={() => setShowPasswordReset(false)} />
+  }
+
   return (
     <Tabs defaultValue="signin" className="w-full max-w-md">
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="signin" id="signin-tab">
-          {t("sign_in")}
+          {t("Sign in")}
         </TabsTrigger>
         <TabsTrigger value="signup" id="signup-tab">
-          {t("sign_up")}
+          {t("Sign up")}
         </TabsTrigger>
       </TabsList>
       <TabsContent value="signin">
@@ -113,8 +119,16 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">{t("password")}</Label>
-                <Button variant="link" size="sm" className="text-xs">
-                  {t("forgot_password")}
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-xs"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setShowPasswordReset(true)
+                  }}
+                >
+                  {t("Forgot password")}
                 </Button>
               </div>
               <Input
@@ -132,7 +146,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
               </Alert>
             )}
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Loading..." : t("sign_in")}
+              {isLoading ? t("loading") : t("Sign in")}
             </Button>
           </form>
           <div className="relative">
@@ -140,7 +154,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">ou</span>
+              <span className="bg-background px-2 text-muted-foreground">{t("or")}</span>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -174,13 +188,13 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
             </Button>
           </div>
           <p className="text-center text-sm text-muted-foreground">
-            {t("dont_have_account")}{" "}
+            {t("Don't have an account")}{" "}
             <Button
               variant="link"
               className="p-0 h-auto"
               onClick={() => document.getElementById("signup-tab")?.click()}
             >
-              {t("sign_up")}
+              {t("Sign up")}
             </Button>
           </p>
         </div>
@@ -226,17 +240,17 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
               </Alert>
             )}
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Loading..." : t("create_account")}
+              {isLoading ? t("loading") : t("Create an account")}
             </Button>
           </form>
           <p className="text-center text-sm text-muted-foreground">
-            {t("already_have_account")}{" "}
+            {t("Already have an account")}{" "}
             <Button
               variant="link"
               className="p-0 h-auto"
               onClick={() => document.getElementById("signin-tab")?.click()}
             >
-              {t("sign_in")}
+              {t("Sign in")}
             </Button>
           </p>
         </div>

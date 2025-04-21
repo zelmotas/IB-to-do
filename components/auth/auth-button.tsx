@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { useLanguage } from "@/contexts/language-context"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { User, LogOut } from "lucide-react"
+import { User, LogOut, Settings } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -13,9 +13,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { AuthForm } from "@/components/auth/auth-form"
+import { LoginForm } from "@/components/auth/login-form"
 import { useState } from "react"
 import { useToast } from "@/hooks/use-toast"
+import Link from "next/link"
 
 export function AuthButton() {
   const { user, signOut } = useAuth()
@@ -26,7 +27,7 @@ export function AuthButton() {
   const handleSignOut = async () => {
     await signOut()
     toast({
-      title: t("sign_out_success"),
+      title: t("signOutSuccess"),
       duration: 3000,
     })
   }
@@ -48,9 +49,15 @@ export function AuthButton() {
           <DropdownMenuItem disabled className="font-medium">
             {user.email}
           </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/account">
+              <Settings className="mr-2 h-4 w-4" />
+              {t("Account settings")}
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={handleSignOut}>
             <LogOut className="mr-2 h-4 w-4" />
-            {t("sign_out")}
+            {t("Sign out")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -62,15 +69,15 @@ export function AuthButton() {
       <DialogTrigger asChild>
         <Button variant="outline" size="icon" className="border-2 transition-all duration-200 hover:scale-110">
           <User className="h-[1.2rem] w-[1.2rem]" />
-          <span className="sr-only">{t("sign_in")}</span>
+          <span className="sr-only">{t("Sign in")}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{t("sign_in")}</DialogTitle>
-          <DialogDescription>{t("sign_in_to_save")}</DialogDescription>
+          <DialogTitle>{t("Sign in")}</DialogTitle>
+          <DialogDescription>{t("Sign in to save information")}</DialogDescription>
         </DialogHeader>
-        <AuthForm onSuccess={handleAuthSuccess} />
+        <LoginForm />
       </DialogContent>
     </Dialog>
   )

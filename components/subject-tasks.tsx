@@ -291,14 +291,14 @@ export function SubjectTasks({ subject, addTask, toggleTaskCompletion, deleteTas
                             </ul>
                           </div>
                         ) : (
-                          <p className="text-sm text-muted-foreground italic">{t("no_tasks_yet")}</p>
+                          <p className="text-sm text-muted-foreground italic">{t("No tasks yet")}</p>
                         )}
 
                         {activeSubtopic?.unitId === unit.id && activeSubtopic?.subtopicId === subtopic.id ? (
                           <div className="flex flex-col gap-2 mt-4">
                             <div className="flex gap-2">
                               <Input
-                                placeholder={t("add_task")}
+                                placeholder={t("Add Task")}
                                 value={newTaskText}
                                 onChange={(e) => setNewTaskText(e.target.value)}
                                 className="flex-1"
@@ -431,7 +431,7 @@ export function SubjectTasks({ subject, addTask, toggleTaskCompletion, deleteTas
                                     }
                                   }}
                                 >
-                                  {t("add_task_button")}
+                                  {t("Add Task")}
                                 </Button>
                               </div>
                             </div>
@@ -444,7 +444,7 @@ export function SubjectTasks({ subject, addTask, toggleTaskCompletion, deleteTas
                             onClick={() => setActiveSubtopic({ unitId: unit.id, subtopicId: subtopic.id })}
                           >
                             <PlusCircle className="h-4 w-4 mr-2" />
-                            {t("add_task_button")}
+                            {t("Add Task")}
                           </Button>
                         )}
                       </div>

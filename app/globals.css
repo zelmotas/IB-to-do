@@ -92,3 +92,119 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Smooth scrolling for the entire app */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background) / 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Subtle animations for interactive elements */
+button,
+a,
+input,
+select,
+.interactive {
+  transition: all 0.2s ease;
+}
+
+/* Subtle hover effects */
+.card,
+.interactive-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.interactive-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+/* Improved focus styles */
+:focus-visible {
+  outline: 2px solid hsl(var(--primary) / 0.5);
+  outline-offset: 2px;
+}
+
+/* Animation classes */
+.fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.slide-up {
+  animation: slideUp 0.3s ease forwards;
+}
+
+.slide-down {
+  animation: slideDown 0.3s ease forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Improved calendar day styling */
+.calendar-day {
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.calendar-day:hover {
+  background-color: hsl(var(--muted) / 0.5);
+  border-color: hsl(var(--border));
+}
+
+.calendar-day.selected {
+  background-color: hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary));
+}
+
+.calendar-day.today {
+  font-weight: bold;
+  color: hsl(var(--primary));
+}

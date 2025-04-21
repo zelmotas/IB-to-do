@@ -7,6 +7,8 @@ import { LanguageProvider } from "@/contexts/language-context"
 import { AuthProvider } from "@/contexts/auth-context"
 import { Toaster } from "@/components/ui/toaster"
 import { Analytics } from "@vercel/analytics/react"
+import { SpeedInsights } from "@vercel/speed-insights/next"
+import { Suspense } from "react"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -27,8 +29,12 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider>
             <LanguageProvider>
-              {children}
-              <Toaster />
+              <Suspense>
+                {children}
+                <Analytics />
+                <SpeedInsights />
+                <Toaster />
+              </Suspense>
             </LanguageProvider>
           </AuthProvider>
         </ThemeProvider>
