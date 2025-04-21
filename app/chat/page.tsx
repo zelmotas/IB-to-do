@@ -9,10 +9,12 @@ import { Button } from "@/components/ui/button"
 import { Menu } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { createChatSession, getChatSessions } from "@/services/chat-service"
+import { useLanguage } from "@/contexts/language-context"
 
 function ChatInterface() {
   const { currentChat, isLoading, sendMessage, setCurrentChat } = useChat()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const { t } = useLanguage()
 
   useEffect(() => {
     const initializeChat = async () => {
@@ -47,7 +49,7 @@ function ChatInterface() {
       {/* Mobile menu */}
       <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="md:hidden absolute left-4 top-4 z-10">
+          <Button variant="ghost" size="icon" className="absolute left-4 top-4 z-10 md:hidden">
             <Menu className="h-5 w-5" />
             <span className="sr-only">Menu</span>
           </Button>

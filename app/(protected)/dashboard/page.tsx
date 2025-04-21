@@ -1,5 +1,5 @@
-// Add the ChatLink component to the dashboard
 import { ChatLink } from "./chat-link"
+import { LanguageSelector } from "@/components/language-selector"
 
 export const metadata = {
   title: "Dashboard",
@@ -9,7 +9,10 @@ export const metadata = {
 export default async function DashboardPage() {
   return (
     <div className="container mx-auto py-10">
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <LanguageSelector />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="col-span-2">

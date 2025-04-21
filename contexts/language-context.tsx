@@ -1,10 +1,11 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState } from "react"
+import { useEffect, type ReactNode } from "react"
 import { frenchStudyGuides } from "@/lib/translations"
 import { subtopicTranslations } from "@/lib/subtopic-translations"
 
-type Language = "en" | "fr"
+type Language = "en" | "fr" | "es" | "de" | "zh"
 
 interface LanguageContextType {
   language: Language
@@ -14,6 +15,7 @@ interface LanguageContextType {
   translateSubtopic: (subtopicName: string) => string
 }
 
+// Create a context with a default value
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined)
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
@@ -96,9 +98,19 @@ export function useLanguage() {
   return context
 }
 
-// Translations object
-const translations = {
+// Simple translations for basic UI elements
+const translations: Record<Language, Record<string, string>> = {
   en: {
+    "app.title": "IB Class Tracker",
+    "app.description": "Track your IB classes, assignments, and progress",
+    "nav.dashboard": "Dashboard",
+    "nav.tasks": "Tasks",
+    "nav.calendar": "Calendar",
+    "nav.chat": "IB Assistant",
+    "nav.settings": "Settings",
+    "auth.login": "Login",
+    "auth.signup": "Sign Up",
+    "auth.logout": "Logout",
     // General
     appTitle: "IB Subject To-Do Tracker",
     home: "Home",
@@ -228,6 +240,16 @@ const translations = {
     syncData: "Sync data",
   },
   fr: {
+    "app.title": "Suivi de Classe IB",
+    "app.description": "Suivez vos cours IB, devoirs et progrès",
+    "nav.dashboard": "Tableau de bord",
+    "nav.tasks": "Tâches",
+    "nav.calendar": "Calendrier",
+    "nav.chat": "Assistant IB",
+    "nav.settings": "Paramètres",
+    "auth.login": "Connexion",
+    "auth.signup": "S'inscrire",
+    "auth.logout": "Déconnexion",
     // General
     appTitle: "Suivi des Tâches des Matières IB",
     home: "Accueil",
@@ -397,5 +419,41 @@ const translations = {
     syncError: "Erreur de synchronisation",
     syncErrorDescription: "Une erreur est survenue lors de la synchronisation de vos données",
     syncData: "Synchroniser les données",
+  },
+  es: {
+    "app.title": "Seguimiento de Clases IB",
+    "app.description": "Sigue tus clases IB, tareas y progreso",
+    "nav.dashboard": "Panel",
+    "nav.tasks": "Tareas",
+    "nav.calendar": "Calendario",
+    "nav.chat": "Asistente IB",
+    "nav.settings": "Configuración",
+    "auth.login": "Iniciar sesión",
+    "auth.signup": "Registrarse",
+    "auth.logout": "Cerrar sesión",
+  },
+  de: {
+    "app.title": "IB-Klassen-Tracker",
+    "app.description": "Verfolgen Sie Ihre IB-Kurse, Aufgaben und Fortschritte",
+    "nav.dashboard": "Dashboard",
+    "nav.tasks": "Aufgaben",
+    "nav.calendar": "Kalender",
+    "nav.chat": "IB-Assistent",
+    "nav.settings": "Einstellungen",
+    "auth.login": "Anmelden",
+    "auth.signup": "Registrieren",
+    "auth.logout": "Abmelden",
+  },
+  zh: {
+    "app.title": "IB课程跟踪器",
+    "app.description": "跟踪您的IB课程、作业和进度",
+    "nav.dashboard": "仪表板",
+    "nav.tasks": "任务",
+    "nav.calendar": "日历",
+    "nav.chat": "IB助手",
+    "nav.settings": "设置",
+    "auth.login": "登录",
+    "auth.signup": "注册",
+    "auth.logout": "登出",
   },
 }

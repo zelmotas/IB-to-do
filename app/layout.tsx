@@ -5,6 +5,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { NotificationProvider } from "@/contexts/notification-context"
+import { LanguageProvider } from "@/contexts/language-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -23,10 +24,12 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <NotificationProvider>
-            {children}
-            <Toaster />
-          </NotificationProvider>
+          <LanguageProvider>
+            <NotificationProvider>
+              {children}
+              <Toaster />
+            </NotificationProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -1,16 +1,6 @@
-'use client';
-
-import { useEffect } from 'react';
-import { IbTodoTracker } from "@/components/ib-todo-tracker";
+import { redirect } from "next/navigation"
 
 export default function Home() {
-  useEffect(() => {
-    fetch('/api/track');
-  }, []);
-
-  return (
-    <main className="min-h-screen p-4 md:p-8">
-      <IbTodoTracker />
-    </main>
-  );
+  // Redirect to login page
+  redirect("/login")
 }
