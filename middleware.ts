@@ -1,42 +1,64 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs"
+import { createClient } from "@/utils/supabase/middleware"
 
-export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req, res })
+export async function middleware(request: NextRequest) {
+  try {
+    // Create a Supabase client configured to use cookies
+    const { supabase, response } = createClient(request)
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    // Refresh session if expired - required for Server Components
+    // https://supabase.com/docs/guides/auth/auth-helpers/nextjs#managing-session-with-middleware
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
-  // Check if the request is for a protected route
-  const isProtectedRoute =
-    req.nextUrl.pathname.startsWith("/dashboard") ||
-    req.nextUrl.pathname.startsWith("/account") ||
-    req.nextUrl.pathname.startsWith("/api/protected")
+    // Authentication check for protected routes
+    const isAuthRoute =
+      request.nextUrl.pathname.startsWith("/login") ||
+      request.nextUrl.pathname.startsWith("/signup") ||
+      request.nextUrl.pathname.startsWith("/reset-password") ||
+      request.nextUrl.pathname.startsWith("/update-password")
 
-  // Check if the request is for an auth route
-  const isAuthRoute =
-    req.nextUrl.pathname.startsWith("/auth/login") ||
-    req.nextUrl.pathname.startsWith("/auth/signup") ||
-    req.nextUrl.pathname.startsWith("/auth/reset-password")
+    const isProtectedRoute =
+      request.nextUrl.pathname.startsWith("/dashboard") ||
+      request.nextUrl.pathname.startsWith("/chat") ||
+      request.nextUrl.pathname.startsWith("/tasks") ||
+      request.nextUrl.pathname.startsWith("/calendar") ||
+      request.nextUrl.pathname.startsWith("/settings")
 
-  // If the route is protected and the user is not authenticated, redirect to login
-  if (isProtectedRoute && !session) {
-    const redirectUrl = new URL("/auth/login", req.url)
-    redirectUrl.searchParams.set("redirect", req.nextUrl.pathname)
-    return NextResponse.redirect(redirectUrl)
+    // If user is signed in and tries to access auth routes, redirect to dashboard
+    if (session && isAuthRoute) {
+      return NextResponse.redirect(new URL("/dashboard", request.url))
+    }
+
+    // If user is not signed in and tries to access protected routes, redirect to login
+    if (!session && isProtectedRoute) {
+      return NextResponse.redirect(new URL("/login", request.url))
+    }
+
+    // If user is not signed in and tries to access the root, redirect to login
+    if (!session && request.nextUrl.pathname === "/") {
+      return NextResponse.redirect(new URL("/login", request.url))
+    }
+
+    return response
+  } catch (e) {
+    // If there's an error, just continue to the destination
+    return NextResponse.next()
   }
-
-  // If the user is authenticated and trying to access auth routes, redirect to dashboard
-  if (isAuthRoute && session) {
-    return NextResponse.redirect(new URL("/dashboard", req.url))
-  }
-
-  return res
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/account/:path*", "/auth/:path*", "/api/protected/:path*"],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public (public files)
+     * - api (API routes)
+     */
+    "/((?!_next/static|_next/image|favicon.ico|public|api).*)",
+  ],
 }
