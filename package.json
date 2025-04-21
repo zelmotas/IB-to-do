@@ -71,7 +71,8 @@
     "@prisma/client": "latest",
     "@supabase/auth-helpers-nextjs": "latest",
     "@vercel/analytics": "latest",
-    "@vercel/speed-insights": "latest"
+    "@vercel/speed-insights": "latest",
+    "uuid": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
