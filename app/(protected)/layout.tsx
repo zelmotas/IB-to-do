@@ -1,24 +1,10 @@
 import type React from "react"
-import { redirect } from "next/navigation"
-import { createServerSupabaseClient } from "@/lib/supabase"
-import { AuthProvider } from "@/contexts/auth-context"
+import { AuthWrapper } from "@/components/auth/auth-wrapper"
 
-export default async function ProtectedLayout({
+export default function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = createServerSupabaseClient()
-
-  // Check if user is authenticated
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  if (!session) {
-    // Redirect to login if not authenticated
-    redirect("/auth/login")
-  }
-
-  return <AuthProvider>{children}</AuthProvider>
+  return <AuthWrapper>{children}</AuthWrapper>
 }
