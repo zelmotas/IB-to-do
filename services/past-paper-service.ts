@@ -57,7 +57,7 @@ export const pastPaperService = {
   async getSubjects(): Promise<string[]> {
     const supabase = createClient()
 
-    const { data, error } = await supabase.from("past_papers").select("subject").order("subject").distinct()
+    const { data, error } = await supabase.from("past_papers").select("subject").distinct("subject").order("subject")
 
     if (error) {
       console.error("Error fetching subjects:", error)
@@ -73,8 +73,8 @@ export const pastPaperService = {
     const { data, error } = await supabase
       .from("past_papers")
       .select("year")
+      .distinct("year")
       .order("year", { ascending: false })
-      .distinct()
 
     if (error) {
       console.error("Error fetching years:", error)
