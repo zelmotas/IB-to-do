@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { useLanguage } from "@/contexts/language-context"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { User, LogOut, Settings } from "lucide-react"
+import { User, LogOut } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -13,10 +13,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { LoginForm } from "@/components/auth/login-form"
+import { AuthForm } from "@/components/auth/auth-form"
 import { useState } from "react"
 import { useToast } from "@/hooks/use-toast"
-import Link from "next/link"
 
 export function AuthButton() {
   const { user, signOut } = useAuth()
@@ -27,7 +26,7 @@ export function AuthButton() {
   const handleSignOut = async () => {
     await signOut()
     toast({
-      title: t("signOutSuccess"),
+      title: t("sign_out_success"),
       duration: 3000,
     })
   }
@@ -48,12 +47,6 @@ export function AuthButton() {
         <DropdownMenuContent align="end">
           <DropdownMenuItem disabled className="font-medium">
             {user.email}
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/account">
-              <Settings className="mr-2 h-4 w-4" />
-              {t("Account settings")}
-            </Link>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleSignOut}>
             <LogOut className="mr-2 h-4 w-4" />
@@ -77,7 +70,7 @@ export function AuthButton() {
           <DialogTitle>{t("Sign in")}</DialogTitle>
           <DialogDescription>{t("Sign in to save information")}</DialogDescription>
         </DialogHeader>
-        <LoginForm />
+        <AuthForm onSuccess={handleAuthSuccess} />
       </DialogContent>
     </Dialog>
   )

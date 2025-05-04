@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
-import { CalendarIcon, Trash2, PlusCircle, Book, Bell, CheckSquare, Square } from 'lucide-react'
+import { CalendarIcon, Trash2, PlusCircle, Book, Bell, CheckSquare, Square } from "lucide-react"
 import type { Subject } from "@/types/todo"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"

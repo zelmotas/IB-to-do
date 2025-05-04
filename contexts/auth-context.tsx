@@ -1,104 +1,110 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
-import type { User, Session, AuthError } from "@supabase/supabase-js"
-import { useRouter } from "next/navigation"
-import { getSupabaseClient } from "@/lib/supabase"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createClient } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
+import { SessionStorage } from "@/lib/session-storage"
+
+interface User {
+  id: string
+  email: string
+  name?: string
+}
 
 interface AuthContextType {
   user: User | null
-  session: Session | null
   isLoading: boolean
-  signUp: (email: string, password: string, metadata?: { full_name?: string }) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
+  signInWithGoogle: () => Promise<void>
+  signInWithGithub: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
-  updatePassword: (password: string) => Promise<void>
-  updateProfile: (profile: { full_name?: string; avatar_url?: string }) => Promise<void>
+  updatePassword: (token: string, newPassword: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const router = useRouter()
   const { toast } = useToast()
-  const supabase = getSupabaseClient()
+  const supabase = createClient()
 
+  // Check for existing session on mount
   useEffect(() => {
-    const setupAuth = async () => {
+    const checkSession = async () => {
       try {
-        // Check active session
         const {
-          data: { session: activeSession },
+          data: { session },
         } = await supabase.auth.getSession()
-        setSession(activeSession)
-        setUser(activeSession?.user ?? null)
 
-        // Listen for auth changes
-        const {
-          data: { subscription },
-        } = await supabase.auth.onAuthStateChange((_event, newSession) => {
-          setSession(newSession)
-          setUser(newSession?.user ?? null)
+        if (session) {
+          const { user: supabaseUser } = session
 
-          // Refresh the page to update server-side data
-          if (_event === "SIGNED_IN" || _event === "TOKEN_REFRESHED") {
-            router.refresh()
+          if (supabaseUser) {
+            setUser({
+              id: supabaseUser.id,
+              email: supabaseUser.email || "",
+              name: supabaseUser.user_metadata?.name,
+            })
           }
-        })
-
-        return () => {
-          subscription.unsubscribe()
         }
       } catch (error) {
-        console.error("Error setting up auth:", error)
-        toast({
-          title: "Authentication Error",
-          description: "There was a problem connecting to the authentication service.",
-          variant: "destructive",
-        })
+        console.error("Error checking session:", error)
       } finally {
         setIsLoading(false)
       }
     }
 
-    setupAuth()
-  }, [router, toast, supabase.auth])
+    checkSession()
 
-  const signUp = async (email: string, password: string, metadata?: { full_name?: string }) => {
+    // Set up auth state change listener
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && session.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email || "",
+          name: session.user.user_metadata?.name,
+        })
+      } else {
+        setUser(null)
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [supabase])
+
+  const signIn = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      const { error, data } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: {
-          data: metadata,
-        },
       })
 
-      if (error) throw error
-
-      toast({
-        title: "Account created",
-        description: "Please check your email to confirm your account.",
-      })
-
-      // If email confirmation is disabled, user will be signed in automatically
-      if (data.session) {
-        router.push("/dashboard")
-      } else {
-        router.push("/auth/verify-email")
+      if (error) {
+        throw error
       }
-    } catch (error) {
-      const authError = error as AuthError
-      console.error("Error signing up:", authError)
+
+      // Track login in session storage to prevent duplicate notifications
+      SessionStorage.set("login_timestamp", Date.now())
+
       toast({
-        title: "Sign up failed",
-        description: authError.message || "There was a problem creating your account.",
+        title: "Connexion réussie",
+        description: `Bienvenue, ${email}!`,
+      })
+
+      return
+    } catch (error: any) {
+      console.error("Sign in error:", error)
+      toast({
+        title: "Erreur de connexion",
+        description: error.message || "Email ou mot de passe incorrect",
         variant: "destructive",
       })
       throw error
@@ -107,29 +113,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const signIn = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      const { error, data } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
       })
 
-      if (error) throw error
+      if (error) {
+        throw error
+      }
 
       toast({
-        title: "Welcome back!",
-        description: "You have successfully signed in.",
+        title: "Compte créé avec succès",
+        description: `Bienvenue, ${email}! Veuillez vérifier votre email pour confirmer votre compte.`,
       })
 
-      router.push("/dashboard")
-      router.refresh()
-    } catch (error) {
-      const authError = error as AuthError
-      console.error("Error signing in:", authError)
+      return
+    } catch (error: any) {
+      console.error("Sign up error:", error)
       toast({
-        title: "Sign in failed",
-        description: authError.message || "Invalid email or password.",
+        title: "Erreur d'inscription",
+        description: error.message || "Une erreur est survenue",
         variant: "destructive",
       })
       throw error
@@ -142,24 +148,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true)
     try {
       const { error } = await supabase.auth.signOut()
-      if (error) throw error
+
+      if (error) {
+        throw error
+      }
 
       toast({
-        title: "Signed out",
-        description: "You have been successfully signed out.",
+        title: "Déconnexion réussie",
+        description: "À bientôt!",
       })
-
-      router.push("/")
-      router.refresh()
     } catch (error) {
-      console.error("Error signing out:", error)
-      toast({
-        title: "Sign out failed",
-        description: "There was a problem signing you out.",
-        variant: "destructive",
-      })
+      console.error("Sign out error:", error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const signInWithGoogle = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) {
+        throw error
+      }
+    } catch (error: any) {
+      console.error("Google sign in error:", error)
+      toast({
+        title: "Erreur de connexion",
+        description: error.message || "Une erreur est survenue",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const signInWithGithub = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) {
+        throw error
+      }
+    } catch (error: any) {
+      console.error("GitHub sign in error:", error)
+      toast({
+        title: "Erreur de connexion",
+        description: error.message || "Une erreur est survenue",
+        variant: "destructive",
+      })
     }
   }
 
@@ -167,83 +212,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true)
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
+        redirectTo: `${window.location.origin}/reset-password`,
       })
 
-      if (error) throw error
-
-      toast({
-        title: "Password reset email sent",
-        description: "Check your email for a link to reset your password.",
-      })
-    } catch (error) {
-      const authError = error as AuthError
-      console.error("Error resetting password:", authError)
-      toast({
-        title: "Password reset failed",
-        description: authError.message || "There was a problem sending the password reset email.",
-        variant: "destructive",
-      })
-      throw error
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const updatePassword = async (password: string) => {
-    setIsLoading(true)
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password,
-      })
-
-      if (error) throw error
-
-      toast({
-        title: "Password updated",
-        description: "Your password has been successfully updated.",
-      })
-
-      router.push("/dashboard")
-    } catch (error) {
-      const authError = error as AuthError
-      console.error("Error updating password:", authError)
-      toast({
-        title: "Password update failed",
-        description: authError.message || "There was a problem updating your password.",
-        variant: "destructive",
-      })
-      throw error
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const updateProfile = async (profile: { full_name?: string; avatar_url?: string }) => {
-    setIsLoading(true)
-    try {
-      const { error } = await supabase.auth.updateUser({
-        data: profile,
-      })
-
-      if (error) throw error
-
-      // Also update the profile in the users table
-      if (user) {
-        const { error: profileError } = await supabase.from("users").update(profile).eq("id", user.id)
-
-        if (profileError) throw profileError
+      if (error) {
+        throw error
       }
 
       toast({
-        title: "Profile updated",
-        description: "Your profile has been successfully updated.",
+        title: "Email envoyé",
+        description: "Veuillez vérifier votre email pour réinitialiser votre mot de passe.",
       })
-    } catch (error) {
-      console.error("Error updating profile:", error)
+    } catch (error: any) {
+      console.error("Password reset error:", error)
       toast({
-        title: "Profile update failed",
-        description: "There was a problem updating your profile.",
+        title: "Erreur de réinitialisation",
+        description: error.message || "Une erreur est survenue",
+        variant: "destructive",
+      })
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const updatePassword = async (token: string, newPassword: string) => {
+    setIsLoading(true)
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      toast({
+        title: "Mot de passe mis à jour",
+        description: "Votre mot de passe a été mis à jour avec succès.",
+      })
+    } catch (error: any) {
+      console.error("Update password error:", error)
+      toast({
+        title: "Erreur de mise à jour",
+        description: error.message || "Une erreur est survenue",
         variant: "destructive",
       })
       throw error
@@ -256,14 +268,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        session,
         isLoading,
-        signUp,
         signIn,
+        signUp,
         signOut,
+        signInWithGoogle,
+        signInWithGithub,
         resetPassword,
         updatePassword,
-        updateProfile,
       }}
     >
       {children}

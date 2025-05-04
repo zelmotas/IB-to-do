@@ -3,15 +3,19 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
-import { NotificationProvider } from "@/contexts/notification-context"
 import { LanguageProvider } from "@/contexts/language-context"
+import { AuthProvider } from "@/contexts/auth-context"
+import { Toaster } from "@/components/ui/toaster"
+import { Analytics } from "@vercel/analytics/react"
+import { SpeedInsights } from "@vercel/speed-insights/next"
+import { NotificationChecker } from "@/components/notification-checker"
+import { Suspense } from "react"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "IB Class Tracker",
-  description: "Track your IB classes, assignments, and progress",
+  description: "Track your IB classes, tasks, and deadlines",
     generator: 'v0.dev'
 }
 
@@ -22,14 +26,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <script
+        strategy="beforeInteractive"
+        async
+        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6422029198361545"
+        crossOrigin="anonymous"
+      />
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <LanguageProvider>
-            <NotificationProvider>
-              {children}
+          <AuthProvider>
+            <LanguageProvider>
+              <Suspense>
+                {children}
+                <NotificationChecker />
+              </Suspense>
+              <Analytics />
+              <SpeedInsights />
               <Toaster />
-            </NotificationProvider>
-          </LanguageProvider>
+            </LanguageProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

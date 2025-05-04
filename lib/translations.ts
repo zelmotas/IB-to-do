@@ -59,7 +59,7 @@ export const frenchStudyGuides = {
       "**Définition:** Développement de (a+b)ⁿ.\n\n" +
       "**Formule clé:** (a+b)ⁿ = Σ_{k=0}ⁿ C(n,k) aⁿ⁻ᵏ bᵏ\n\n" +
       "**Question typique:** Trouver le terme en x² dans (2+3x)⁵.\n\n" +
-      "**Conseils:** Utiliser le triangle de Pascal pour les coefficients; vérifier la plage d'index k."
+      "**Conseils:** Utiliser le triangle de Pascal pour les coefficients; vérifier la plage d'index k.",
   },
   "math-unit-2": {
     "math-2-1":
@@ -129,7 +129,7 @@ export const frenchStudyGuides = {
       "**Définition:** Translations: f(x–h)+k; étirements: a·f(x); réflexions f(–x).\n\n" +
       "**Concepts clés:** L'ordre compte (horiz avant vert).\n\n" +
       "**Question typique:** Esquisser y=–2·f(x+3)+1 étant donné le graphique de base.\n\n" +
-      "**Conseils:** Travailler une transformation à la fois."
+      "**Conseils:** Travailler une transformation à la fois.",
   },
   "math-unit-3": {
     "math-3-1":
@@ -162,7 +162,7 @@ export const frenchStudyGuides = {
       "**Définition:** arcsin, arccos, arctan avec plages principales.\n\n" +
       "**Concepts clés:** arcsin∈[–π/2,π/2], arccos∈[0,π].\n\n" +
       "**Question typique:** Évaluer arccos(–½).\n\n" +
-      "**Conseils:** Toujours indiquer l'angle dans le quadrant correct."
+      "**Conseils:** Toujours indiquer l'angle dans le quadrant correct.",
   },
   "math-unit-4": {
     "math-4-1":
@@ -196,7 +196,7 @@ export const frenchStudyGuides = {
       "- r = Σ(xᵢ–x̄)(yᵢ–ȳ)/[√Σ(xᵢ–x̄)² √Σ(yᵢ–ȳ)²]\n" +
       "- ŷ = a + b x (droite des moindres carrés)\n\n" +
       "**Question typique:** Interpréter r=–0,85 pour des données de taille vs poids.\n\n" +
-      "**Conseils:** Tracer d'abord le nuage de points; surveiller les valeurs aberrantes."
+      "**Conseils:** Tracer d'abord le nuage de points; surveiller les valeurs aberrantes.",
   },
   "math-unit-5": {
     "math-5-1":
@@ -260,7 +260,7 @@ export const frenchStudyGuides = {
       "**Définition:** Méthodes calculatrice/application: Newton–Raphson, règle trapézoïdale.\n\n" +
       "**Formule clé:** Newton: xₙ₊₁ = xₙ – f(xₙ)/f′(xₙ).\n\n" +
       "**Question typique:** Approximer la racine de x³–2x–5=0.\n\n" +
-      "**Conseils:** Utiliser une bonne estimation initiale; vérifier la convergence."
+      "**Conseils:** Utiliser une bonne estimation initiale; vérifier la convergence.",
   },
   // Physics SL translations
   "physics-unit-a": {
@@ -281,7 +281,7 @@ export const frenchStudyGuides = {
       "**Définition:** Transfert d'énergie.\n\n" +
       "**Formules clés:** W=F·s·cosθ; EC=½mv²; P=W/t\n\n" +
       "**Question typique:** Travail effectué en soulevant une masse m d'une hauteur h.\n\n" +
-      "**Conseils:** Utiliser la conservation de l'énergie pour éviter les forces complexes."
+      "**Conseils:** Utiliser la conservation de l'énergie pour éviter les forces complexes.",
   },
   "physics-unit-b": {
     "physics-b1":
@@ -307,7 +307,7 @@ export const frenchStudyGuides = {
       "**Définition:** Flux de courant électrique et analyse de circuit.\n\n" +
       "**Formules clés:** V=IR; règles série/parallèle; résistance interne: ε=IR+Ir\n\n" +
       "**Question typique:** Trouver ε et r à partir du graphique V–I.\n\n" +
-      "**Conseils:** Étiqueter les polarités; appliquer Kirchhoff systématiquement."
+      "**Conseils:** Étiqueter les polarités; appliquer Kirchhoff systématiquement.",
   },
   "physics-unit-c": {
     "physics-c1":
@@ -339,7 +339,7 @@ export const frenchStudyGuides = {
       "**Définition:** Décalage de fréquence dû au mouvement relatif.\n\n" +
       "**Formule clé:** f′=f(v±v₀)/(v∓vs)\n\n" +
       "**Question typique:** Fréquence observée d'une sirène d'ambulance.\n\n" +
-      "**Conseils:** Utiliser une convention de signe cohérente."
+      "**Conseils:** Utiliser une convention de signe cohérente.",
   },
   "physics-unit-d": {
     "physics-d1":
@@ -359,7 +359,7 @@ export const frenchStudyGuides = {
       "**Définition:** Trajectoires de particules dans des champs combinés.\n\n" +
       "**Formule clé:** r=mv/(qB) pour le mouvement circulaire\n\n" +
       "**Question typique:** Rayon de la trajectoire dans un spectromètre de masse.\n\n" +
-      "**Conseils:** Décomposer les effets E et B si les deux sont présents."
+      "**Conseils:** Décomposer les effets E et B si les deux sont présents.",
   },
   "physics-unit-e": {
     "physics-e1":
@@ -385,7 +385,7 @@ export const frenchStudyGuides = {
       "**Définition:** Noyaux légers se combinant pour former des plus lourds.\n\n" +
       "**Concepts clés:** Chaîne proton–proton; cycle CNO\n\n" +
       "**Question typique:** Expliquer pourquoi la fusion libère plus d'énergie par nucléon.\n\n" +
-      "**Conseils:** Référencer la courbe d'énergie de liaison."
+      "**Conseils:** Référencer la courbe d'énergie de liaison.",
   },
   // Chemistry SL translations
   "chemistry-structure-1": {
@@ -418,7 +418,7 @@ export const frenchStudyGuides = {
       "**Définition:** Relation entre pression, volume, température pour les gaz.\n\n" +
       "**Formule clé:** PV=nRT (R=8,314 J mol⁻¹ K⁻¹).\n\n" +
       "**Question typique:** Volume aux conditions normales.\n\n" +
-      "**Conseils:** Convertir P en Pa, V en m³."
+      "**Conseils:** Convertir P en Pa, V en m³.",
   },
   "chemistry-structure-2": {
     "chemistry-s2-1":
@@ -444,7 +444,7 @@ export const frenchStudyGuides = {
       "**Définition:** Relations structure-propriété dans divers matériaux.\n\n" +
       "**Concepts clés:** Polymères, céramiques, nanomatériaux.\n\n" +
       "**Question typique:** Comparer les propriétés du diamant vs graphite.\n\n" +
-      "**Conseils:** Lier le type de liaison à la dureté."
+      "**Conseils:** Lier le type de liaison à la dureté.",
   },
   "chemistry-structure-3": {
     "chemistry-s3-1":
@@ -458,7 +458,7 @@ export const frenchStudyGuides = {
       "**Définition:** Arrangements spécifiques d'atomes qui déterminent le comportement chimique.\n\n" +
       "**Concepts clés:** Alcools, aldéhydes, acides, amines, etc.\n\n" +
       "**Question typique:** Nommer un composé avec groupe –COOH.\n\n" +
-      "**Conseils:** Garder un ensemble de fiches des structures de groupe."
+      "**Conseils:** Garder un ensemble de fiches des structures de groupe.",
   },
   "chemistry-reactivity-1": {
     "chemistry-r1-1":
@@ -484,7 +484,7 @@ export const frenchStudyGuides = {
       "**Définition:** Mesure du désordre et de la spontanéité de réaction.\n\n" +
       "**Formule clé:** ΔG=ΔH–TΔS.\n\n" +
       "**Question typique:** Prédire la spontanéité à T donnée.\n\n" +
-      "**Conseils:** Convertir ΔS en J K⁻¹ mol⁻¹ pour correspondre à ΔH."
+      "**Conseils:** Convertir ΔS en J K⁻¹ mol⁻¹ pour correspondre à ΔH.",
   },
   "chemistry-reactivity-2": {
     "chemistry-r2-1":
@@ -504,7 +504,7 @@ export const frenchStudyGuides = {
       "**Définition:** Équilibre dynamique des réactions directe/inverse.\n\n" +
       "**Concepts clés:** Expressions K_c, K_p; réponse au stress.\n\n" +
       "**Question typique:** Prédire le déplacement quand la pression augmente.\n\n" +
-      "**Conseils:** Les tableaux ICE gardent le travail organisé."
+      "**Conseils:** Les tableaux ICE gardent le travail organisé.",
   },
   "chemistry-reactivity-3": {
     "chemistry-r3-1":
@@ -530,7 +530,7 @@ export const frenchStudyGuides = {
       "**Définition:** Voies de réaction en chimie organique.\n\n" +
       "**Concepts clés:** Force du nucléophile; encombrement stérique du substrat.\n\n" +
       "**Question typique:** Distinguer les lois de vitesse SN1 vs SN2.\n\n" +
-      "**Conseils:** Esquisser le diagramme de coordonnée de réaction."
+      "**Conseils:** Esquisser le diagramme de coordonnée de réaction.",
   },
   // Geography HL translations
   "geography-core": {
@@ -551,7 +551,7 @@ export const frenchStudyGuides = {
       "**Définition:** Accès à l'eau, à la nourriture, à l'énergie.\n\n" +
       "**Concepts clés:** Eau virtuelle; économie circulaire; écart de ressources.\n\n" +
       "**Question typique:** Évaluer les mesures de sécurité alimentaire dans une région en développement.\n\n" +
-      "**Conseils:** Relier les modèles de consommation aux scores IDH."
+      "**Conseils:** Relier les modèles de consommation aux scores IDH.",
   },
   "geography-options": {
     "geography-opt-1":
@@ -595,7 +595,7 @@ export const frenchStudyGuides = {
       "**Définition:** Développement et défis des villes.\n\n" +
       "**Concepts clés:** Modèles urbains; gentrification; villes intelligentes.\n\n" +
       "**Question typique:** Évaluer les solutions de transport durable.\n\n" +
-      "**Conseils:** Comparer les villes à différents stades de développement."
+      "**Conseils:** Comparer les villes à différents stades de développement.",
   },
   "geography-hl-extension": {
     "geography-hl-1":
@@ -615,7 +615,7 @@ export const frenchStudyGuides = {
       "**Définition:** Menaces transnationales et réponses.\n\n" +
       "**Concepts clés:** Transition épidémiologique; cadres de cybermenace.\n\n" +
       "**Question typique:** Évaluer la réponse mondiale au COVID-19.\n\n" +
-      "**Conseils:** Équilibrer les données quantitatives avec la critique des politiques."
+      "**Conseils:** Équilibrer les données quantitatives avec la critique des politiques.",
   },
   "geography-ia": {
     "geography-ia-1":
@@ -627,6 +627,62 @@ export const frenchStudyGuides = {
       "3. Analyse (graphiques, statistiques)\n" +
       "4. Évaluation et limitations\n\n" +
       "**Question typique:** Concevoir une étude de microclimat dans votre ville.\n\n" +
-      "**Conseils:** Garder votre question étroite et les méthodes justifiées."
-  }
+      "**Conseils:** Garder votre question étroite et les méthodes justifiées.",
+  },
+  pastPapers: "Épreuves Passées",
+  allPapers: "Toutes les Épreuves",
+  browseBySubject: "Parcourir par Matière",
+  browseByYear: "Parcourir par Année",
+  searchPastPapers: "Rechercher des Épreuves",
+  searchPastPapersPlaceholder: "Rechercher par titre, description ou mots-clés...",
+  noPastPapersFound: "Aucune épreuve trouvée correspondant à vos critères.",
+  uploadPastPaper: "Télécharger une Épreuve",
+  uploadSuccess: "Téléchargement Réussi",
+  pastPaperUploaded: "L'épreuve a été téléchargée avec succès.",
+  uploadError: "Erreur de Téléchargement",
+  pastPaperUploadFailed: "Échec du téléchargement de l'épreuve. Veuillez réessayer.",
+  subject: "Matière",
+  subjectPlaceholder: "ex. Mathématiques, Physique",
+  subjectCode: "Code de Matière",
+  subjectCodePlaceholder: "ex. MATH_HL",
+  subjectCodeDescription: "Code optionnel pour la matière",
+  year: "Année",
+  month: "Mois",
+  selectMonth: "Sélectionner un mois",
+  may: "Mai",
+  november: "Novembre",
+  language: "Langue",
+  languagePlaceholder: "ex. Anglais, Français",
+  paperNumber: "Numéro d'Épreuve",
+  level: "Niveau",
+  selectLevel: "Sélectionner un niveau",
+  both: "Les Deux",
+  description: "Description",
+  descriptionPlaceholder: "Ajoutez des informations supplémentaires sur cette épreuve...",
+  file: "Fichier",
+  fileDescription: "Téléchargez un fichier PDF (max 10MB)",
+  uploading: "Téléchargement en cours...",
+  title: "Titre",
+  pastPaperTitlePlaceholder: "ex. Mathématiques HL Épreuve 1",
+  filters: "Filtres",
+  selectSubject: "Sélectionner une matière",
+  searchSubject: "Rechercher une matière",
+  noSubjectsFound: "Aucune matière trouvée",
+  selectYear: "Sélectionner une année",
+  searchYear: "Rechercher une année",
+  noYearsFound: "Aucune année trouvée",
+  clearFilters: "Effacer les Filtres",
+  paper: "Épreuve",
+  download: "Télécharger",
+  view: "Voir",
+  loading: "Chargement...",
+  papers: "épreuves",
+  found: "trouvées",
+  details: "Détails",
+  downloadPastPaper: "Télécharger l'Épreuve",
+  previewNotAvailable: "Aperçu non disponible",
+  openInNewTab: "Ouvrir dans un Nouvel Onglet",
+  back: "Retour",
+  pastPaperNotFound: "Épreuve non trouvée",
+  backToSearch: "Retour à la Recherche",
 }

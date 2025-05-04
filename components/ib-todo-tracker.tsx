@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SubjectTasks } from "@/components/subject-tasks"
 import { ibSubjects } from "@/data/ib-subjects"
-import type { Subject, Task } from "@/types/todo"
+import type { Subject } from "@/types/todo"
 import { Button } from "@/components/ui/button"
 import { useTheme } from "next-themes"
 import { HomeTasks } from "@/components/home-tasks"
@@ -18,9 +18,8 @@ import { useToast } from "@/hooks/use-toast"
 import { CalendarView } from "@/components/calendar-view"
 import { ViewToggle } from "@/components/view-toggle"
 import { AiChatAssistant } from "@/components/ai-chat-assistant"
-import { DataService } from "@/lib/data-service"
+import { SyncService } from "@/lib/sync-service"
 import { cn } from "@/lib/utils"
-import { DataSync } from "@/components/data-sync"
 
 // Import Lucide icons at the top of the file
 import { Home, Sun, Moon, RefreshCw } from "lucide-react"
@@ -45,73 +44,154 @@ export function IbTodoTracker() {
     setMounted(true)
   }, [])
 
-  // Load tasks from Supabase when user is authenticated
+  // Check for updates from the server
   useEffect(() => {
-    const loadUserTasks = async () => {
-      if (!user) return
+    if (user) {
+      const checkForUpdates = async () => {
+        const updates = await SyncService.checkForUpdates({ userId: user.id })
+        setHasUpdates(updates)
+      }
 
-      setIsSyncing(true)
-      try {
-        const userTasks = await DataService.getUserTasks(user.id)
+      checkForUpdates()
 
-        // Map tasks to subjects structure
-        const updatedSubjects = [...ibSubjects]
+      // Check for updates every 5 minutes
+      const interval = setInterval(checkForUpdates, 5 * 60 * 1000)
 
-        userTasks.forEach((task) => {
-          const subjectIndex = updatedSubjects.findIndex((s) => s.id === task.subject_id)
-          if (subjectIndex === -1) return
+      return () => clearInterval(interval)
+    }
+  }, [user])
 
-          const unitIndex = updatedSubjects[subjectIndex].units.findIndex((u) => u.id === task.unit_id)
-          if (unitIndex === -1) return
+  // Load tasks from localStorage or server if user is logged in
+  useEffect(() => {
+    const loadData = async () => {
+      if (user) {
+        setIsSyncing(true)
 
-          const subtopicIndex = updatedSubjects[subjectIndex].units[unitIndex].subtopics.findIndex(
-            (s) => s.id === task.subtopic_id,
-          )
-          if (subtopicIndex === -1) return
+        try {
+          // Try to pull data from server first
+          const serverData = await SyncService.pullChanges({
+            userId: user.id,
+            onSuccess: () => {
+              SyncService.updateLastSync(user.id)
+              toast({
+                title: t("dataSynced"),
+                description: t("dataSyncedDescription"),
+                duration: 3000,
+              })
+            },
+          })
 
-          // Convert task to the expected format
-          const formattedTask: Task = {
-            id: task.id,
-            text: task.text,
-            completed: task.completed,
-            dueDate: task.due_date,
-            createdAt: task.created_at,
-            reminderTime: task.reminder_time,
-            subjectId: task.subject_id,
-            unitId: task.unit_id,
-            subtopicId: task.subtopic_id,
-            subjectName: task.subject_name,
-            unitName: task.unit_name,
-            subtopicName: task.subtopic_name,
-            subjectColor: task.subject_color,
+          if (serverData) {
+            setSubjects(serverData)
+          } else {
+            // If no server data, try to load from local storage
+            const userKey = `ibSubjects_${user.id}`
+            const savedSubjects = localStorage.getItem(userKey)
+
+            if (savedSubjects) {
+              const parsedSubjects = JSON.parse(savedSubjects)
+              setSubjects(parsedSubjects)
+
+              // Push to server
+              await SyncService.pushChanges({
+                userId: user.id,
+                data: parsedSubjects,
+                onSuccess: () => SyncService.updateLastSync(user.id),
+              })
+            } else {
+              // If no user-specific data, try to load from general storage
+              const generalSavedSubjects = localStorage.getItem("ibSubjects")
+              if (generalSavedSubjects) {
+                const parsedSubjects = JSON.parse(generalSavedSubjects)
+                setSubjects(parsedSubjects)
+
+                // Save to user-specific storage and push to server
+                localStorage.setItem(userKey, generalSavedSubjects)
+                await SyncService.pushChanges({
+                  userId: user.id,
+                  data: parsedSubjects,
+                  onSuccess: () => SyncService.updateLastSync(user.id),
+                })
+              }
+            }
           }
 
-          updatedSubjects[subjectIndex].units[unitIndex].subtopics[subtopicIndex].tasks.push(formattedTask)
-        })
+          // Load view preference
+          const savedView = localStorage.getItem(`homeView_${user.id}`)
+          if (savedView) {
+            setHomeView(savedView as "calendar" | "list")
+          }
+        } catch (error) {
+          console.error("Error loading data:", error)
+          toast({
+            title: t("syncError"),
+            description: t("syncErrorDescription"),
+            variant: "destructive",
+          })
+        } finally {
+          setIsSyncing(false)
+          setHasUpdates(false)
+        }
+      } else {
+        // If no user, load from general storage
+        const savedSubjects = localStorage.getItem("ibSubjects")
+        if (savedSubjects) {
+          setSubjects(JSON.parse(savedSubjects))
+        }
 
-        setSubjects(updatedSubjects)
-
-        toast({
-          title: t("dataLoaded"),
-          description: t("dataLoadedDescription"),
-          duration: 3000,
-        })
-      } catch (error) {
-        console.error("Error loading tasks:", error)
-        toast({
-          title: "Error",
-          description: "Failed to load your tasks. Please refresh the page.",
-          variant: "destructive",
-        })
-      } finally {
-        setIsSyncing(false)
+        // Load general view preference
+        const savedView = localStorage.getItem("homeView")
+        if (savedView) {
+          setHomeView(savedView as "calendar" | "list")
+        }
       }
     }
 
-    loadUserTasks()
+    loadData()
   }, [user, toast, t])
 
-  const addTask = async (
+  // Save tasks to localStorage and server whenever they change
+  useEffect(() => {
+    // Save to general storage
+    localStorage.setItem("ibSubjects", JSON.stringify(subjects))
+
+    // If user is logged in, save to user-specific storage and sync to server
+    if (user) {
+      const userKey = `ibSubjects_${user.id}`
+      localStorage.setItem(userKey, JSON.stringify(subjects))
+
+      // Debounce server sync to avoid too many requests
+      const syncTimeout = setTimeout(async () => {
+        setIsSyncing(true)
+        try {
+          await SyncService.pushChanges({
+            userId: user.id,
+            data: subjects,
+            onSuccess: () => SyncService.updateLastSync(user.id),
+          })
+        } catch (error) {
+          console.error("Error syncing data:", error)
+        } finally {
+          setIsSyncing(false)
+        }
+      }, 2000)
+
+      return () => clearTimeout(syncTimeout)
+    }
+  }, [subjects, user])
+
+  // Save view preference whenever it changes
+  useEffect(() => {
+    // Save to general storage
+    localStorage.setItem("homeView", homeView)
+
+    // If user is logged in, save to user-specific storage
+    if (user) {
+      localStorage.setItem(`homeView_${user.id}`, homeView)
+    }
+  }, [homeView, user])
+
+  const addTask = (
     subjectId: string,
     unitId: string,
     subtopicId: string,
@@ -119,231 +199,118 @@ export function IbTodoTracker() {
     dueDate?: string,
     reminderTime?: string,
   ) => {
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to save tasks.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      const subject = subjects.find((s) => s.id === subjectId)
-      const unit = subject?.units.find((u) => u.id === unitId)
-      const subtopic = unit?.subtopics.find((s) => s.id === subtopicId)
-
-      if (!subject || !unit || !subtopic) {
-        throw new Error("Invalid subject, unit, or subtopic")
-      }
-
-      // Create task in database
-      const newTask = await DataService.createTask({
-        user_id: user.id,
-        text: taskText,
-        completed: false,
-        due_date: dueDate || null,
-        reminder_time: reminderTime || null,
-        subject_id: subjectId,
-        unit_id: unitId,
-        subtopic_id: subtopicId,
-        subject_name: subject.name,
-        unit_name: unit.name,
-        subtopic_name: subtopic.name,
-        subject_color: subject.color,
-      })
-
-      // Schedule notification if due date and reminder time are set
-      if (dueDate && reminderTime) {
-        NotificationService.scheduleNotification({
-          taskId: newTask.id,
-          title: `${t("taskDue")}: ${taskText}`,
-          body: t("taskDueSoon")
-            .replace("{subject}", subject.name)
-            .replace("{unit}", unit.name)
-            .replace("{subtopic}", subtopic.name),
-          dueDate,
-          reminderTime,
-        })
-      }
-
-      // Update local state
-      setSubjects((prevSubjects) => {
-        return prevSubjects.map((subject) => {
-          if (subject.id === subjectId) {
-            const updatedUnits = subject.units.map((unit) => {
-              if (unit.id === unitId) {
-                const updatedSubtopics = unit.subtopics.map((subtopic) => {
-                  if (subtopic.id === subtopicId) {
-                    return {
-                      ...subtopic,
-                      tasks: [
-                        ...subtopic.tasks,
-                        {
-                          id: newTask.id,
-                          text: taskText,
-                          completed: false,
-                          dueDate: dueDate || null,
-                          createdAt: newTask.created_at,
-                          reminderTime: reminderTime || null,
-                          subjectId,
-                          unitId,
-                          subtopicId,
-                          subjectName: subject.name,
-                          unitName: unit.name,
-                          subtopicName: subtopic.name,
-                          subjectColor: subject.color,
-                        },
-                      ],
-                    }
-                  }
-                  return subtopic
-                })
-                return { ...unit, subtopics: updatedSubtopics }
-              }
-              return unit
-            })
-            return { ...subject, units: updatedUnits }
-          }
-          return subject
-        })
-      })
-    } catch (error) {
-      console.error("Error adding task:", error)
-      toast({
-        title: "Error",
-        description: "Failed to add task. Please try again.",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const toggleTaskCompletion = async (subjectId: string, unitId: string, subtopicId: string, taskId: string) => {
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to update tasks.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      // Find the task
-      let taskToUpdate: Task | null = null
-      let isCompleted = false
-
-      subjects.forEach((subject) => {
+    setSubjects((prevSubjects) => {
+      const newSubjects = prevSubjects.map((subject) => {
         if (subject.id === subjectId) {
-          subject.units.forEach((unit) => {
+          const updatedUnits = subject.units.map((unit) => {
             if (unit.id === unitId) {
-              unit.subtopics.forEach((subtopic) => {
+              const updatedSubtopics = unit.subtopics.map((subtopic) => {
                 if (subtopic.id === subtopicId) {
-                  const task = subtopic.tasks.find((t) => t.id === taskId)
-                  if (task) {
-                    taskToUpdate = task
-                    isCompleted = task.completed
+                  const taskId = Date.now().toString()
+
+                  // Schedule notification if due date and reminder time are set
+                  if (dueDate && reminderTime) {
+                    const subjectName = subject.name
+                    const unitName = unit.name
+                    const subtopicName = subtopic.name
+
+                    NotificationService.scheduleNotification({
+                      taskId,
+                      title: `${t("taskDue")}: ${taskText}`,
+                      body: t("taskDueSoon")
+                        .replace("{subject}", subjectName)
+                        .replace("{unit}", unitName)
+                        .replace("{subtopic}", subtopicName),
+                      dueDate,
+                      reminderTime,
+                    })
+                  }
+
+                  return {
+                    ...subtopic,
+                    tasks: [
+                      ...subtopic.tasks,
+                      {
+                        id: taskId,
+                        text: taskText,
+                        completed: false,
+                        dueDate: dueDate || null,
+                        createdAt: new Date().toISOString(),
+                        reminderTime: reminderTime || null,
+                      },
+                    ],
                   }
                 }
+                return subtopic
               })
+              return { ...unit, subtopics: updatedSubtopics }
             }
+            return unit
           })
+          return { ...subject, units: updatedUnits }
         }
+        return subject
       })
-
-      if (!taskToUpdate) {
-        throw new Error("Task not found")
-      }
-
-      // Update task in database
-      await DataService.updateTask(taskId, { completed: !isCompleted })
-
-      // Update local state
-      setSubjects((prevSubjects) => {
-        return prevSubjects.map((subject) => {
-          if (subject.id === subjectId) {
-            const updatedUnits = subject.units.map((unit) => {
-              if (unit.id === unitId) {
-                const updatedSubtopics = unit.subtopics.map((subtopic) => {
-                  if (subtopic.id === subtopicId) {
-                    const updatedTasks = subtopic.tasks.map((task) => {
-                      if (task.id === taskId) {
-                        return { ...task, completed: !task.completed }
-                      }
-                      return task
-                    })
-                    return { ...subtopic, tasks: updatedTasks }
-                  }
-                  return subtopic
-                })
-                return { ...unit, subtopics: updatedSubtopics }
-              }
-              return unit
-            })
-            return { ...subject, units: updatedUnits }
-          }
-          return subject
-        })
-      })
-    } catch (error) {
-      console.error("Error toggling task completion:", error)
-      toast({
-        title: "Error",
-        description: "Failed to update task. Please try again.",
-        variant: "destructive",
-      })
-    }
+      return newSubjects
+    })
   }
 
-  const deleteTask = async (subjectId: string, unitId: string, subtopicId: string, taskId: string) => {
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to delete tasks.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      // Remove any scheduled notifications for this task
-      NotificationService.removeNotification(taskId)
-
-      // Delete task from database
-      await DataService.deleteTask(taskId)
-
-      // Update local state
-      setSubjects((prevSubjects) => {
-        return prevSubjects.map((subject) => {
-          if (subject.id === subjectId) {
-            const updatedUnits = subject.units.map((unit) => {
-              if (unit.id === unitId) {
-                const updatedSubtopics = unit.subtopics.map((subtopic) => {
-                  if (subtopic.id === subtopicId) {
-                    return {
-                      ...subtopic,
-                      tasks: subtopic.tasks.filter((task) => task.id !== taskId),
+  const toggleTaskCompletion = (subjectId: string, unitId: string, subtopicId: string, taskId: string) => {
+    setSubjects((prevSubjects) => {
+      return prevSubjects.map((subject) => {
+        if (subject.id === subjectId) {
+          const updatedUnits = subject.units.map((unit) => {
+            if (unit.id === unitId) {
+              const updatedSubtopics = unit.subtopics.map((subtopic) => {
+                if (subtopic.id === subtopicId) {
+                  const updatedTasks = subtopic.tasks.map((task) => {
+                    if (task.id === taskId) {
+                      return { ...task, completed: !task.completed }
                     }
+                    return task
+                  })
+                  return { ...subtopic, tasks: updatedTasks }
+                }
+                return subtopic
+              })
+              return { ...unit, subtopics: updatedSubtopics }
+            }
+            return unit
+          })
+          return { ...subject, units: updatedUnits }
+        }
+        return subject
+      })
+    })
+  }
+
+  const deleteTask = (subjectId: string, unitId: string, subtopicId: string, taskId: string) => {
+    // Remove any scheduled notifications for this task
+    NotificationService.removeNotification(taskId)
+
+    setSubjects((prevSubjects) => {
+      return prevSubjects.map((subject) => {
+        if (subject.id === subjectId) {
+          const updatedUnits = subject.units.map((unit) => {
+            if (unit.id === unitId) {
+              const updatedSubtopics = unit.subtopics.map((subtopic) => {
+                if (subtopic.id === subtopicId) {
+                  return {
+                    ...subtopic,
+                    tasks: subtopic.tasks.filter((task) => task.id !== taskId),
                   }
-                  return subtopic
-                })
-                return { ...unit, subtopics: updatedSubtopics }
-              }
-              return unit
-            })
-            return { ...subject, units: updatedUnits }
-          }
-          return subject
-        })
+                }
+                return subtopic
+              })
+              return { ...unit, subtopics: updatedSubtopics }
+            }
+            return unit
+          })
+          return { ...subject, units: updatedUnits }
+        }
+        return subject
       })
-    } catch (error) {
-      console.error("Error deleting task:", error)
-      toast({
-        title: "Error",
-        description: "Failed to delete task. Please try again.",
-        variant: "destructive",
-      })
-    }
+    })
   }
 
   // Force sync with server
@@ -352,60 +319,34 @@ export function IbTodoTracker() {
 
     setIsSyncing(true)
     try {
-      // Fetch latest tasks from server
-      const userTasks = await DataService.getUserTasks(user.id)
-
-      // Map tasks to subjects structure
-      const updatedSubjects = [...ibSubjects]
-
-      // Clear existing tasks
-      updatedSubjects.forEach((subject) => {
-        subject.units.forEach((unit) => {
-          unit.subtopics.forEach((subtopic) => {
-            subtopic.tasks = []
+      // Pull latest data from server
+      const serverData = await SyncService.pullChanges({
+        userId: user.id,
+        onSuccess: () => {
+          SyncService.updateLastSync(user.id)
+          toast({
+            title: t("dataSynced"),
+            description: t("dataSyncedDescription"),
           })
+        },
+      })
+
+      if (serverData) {
+        setSubjects(serverData)
+      } else {
+        // Push current data to server
+        await SyncService.pushChanges({
+          userId: user.id,
+          data: subjects,
+          onSuccess: () => {
+            SyncService.updateLastSync(user.id)
+            toast({
+              title: t("dataSynced"),
+              description: t("dataSyncedDescription"),
+            })
+          },
         })
-      })
-
-      // Add fetched tasks
-      userTasks.forEach((task) => {
-        const subjectIndex = updatedSubjects.findIndex((s) => s.id === task.subject_id)
-        if (subjectIndex === -1) return
-
-        const unitIndex = updatedSubjects[subjectIndex].units.findIndex((u) => u.id === task.unit_id)
-        if (unitIndex === -1) return
-
-        const subtopicIndex = updatedSubjects[subjectIndex].units[unitIndex].subtopics.findIndex(
-          (s) => s.id === task.subtopic_id,
-        )
-        if (subtopicIndex === -1) return
-
-        // Convert task to the expected format
-        const formattedTask: Task = {
-          id: task.id,
-          text: task.text,
-          completed: task.completed,
-          dueDate: task.due_date,
-          createdAt: task.created_at,
-          reminderTime: task.reminder_time,
-          subjectId: task.subject_id,
-          unitId: task.unit_id,
-          subtopicId: task.subtopic_id,
-          subjectName: task.subject_name,
-          unitName: task.unit_name,
-          subtopicName: task.subtopic_name,
-          subjectColor: task.subject_color,
-        }
-
-        updatedSubjects[subjectIndex].units[unitIndex].subtopics[subtopicIndex].tasks.push(formattedTask)
-      })
-
-      setSubjects(updatedSubjects)
-
-      toast({
-        title: t("dataSynced"),
-        description: t("dataSyncedDescription"),
-      })
+      }
     } catch (error) {
       console.error("Error syncing with server:", error)
       toast({
@@ -643,15 +584,6 @@ export function IbTodoTracker() {
           </div>
         </div>
       )}
-
-      {/* Real-time data sync component */}
-      <DataSync
-        onTasksChange={(tasks) => {
-          if (tasks.length > 0) {
-            syncWithServer()
-          }
-        }}
-      />
 
       {/* AI Chat Assistant */}
       <AiChatAssistant />
