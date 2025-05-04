@@ -1,38 +1,43 @@
 import Link from "next/link"
-import { Calendar } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { pastPaperService } from "@/services/past-paper-service"
 
-export default async function YearsPage() {
-  const years = await pastPaperService.getYears()
+export const dynamic = "force-dynamic"
+
+export default async function PastPaperYearsPage() {
+  let years: number[] = []
+
+  try {
+    years = await pastPaperService.getYears()
+  } catch (error) {
+    console.error("Error fetching years:", error)
+  }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Browse by Year</h1>
+    <div className="container mx-auto py-6">
+      <h1 className="text-3xl font-bold mb-6">Browse Past Papers by Year</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {years.length > 0 ? (
-          years.map((year) => (
+      {years.length === 0 ? (
+        <div className="text-center py-10">
+          <p className="text-lg text-gray-500">No years found. Please check back later or upload some past papers.</p>
+          <Link href="/past-papers/upload" className="text-blue-500 hover:underline mt-4 inline-block">
+            Upload Past Papers
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {years.map((year) => (
             <Link key={year} href={`/past-papers/search?year=${year}`}>
               <Card className="h-full hover:shadow-md transition-shadow">
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {year}
-                  </CardTitle>
+                  <CardTitle className="text-center text-2xl">{year}</CardTitle>
+                  <CardDescription className="text-center">View all papers from {year}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">View all past papers from {year}</p>
-                </CardContent>
               </Card>
             </Link>
-          ))
-        ) : (
-          <div className="col-span-full text-center py-8">
-            <p className="text-muted-foreground">No years found.</p>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

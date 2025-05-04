@@ -57,31 +57,55 @@ export const pastPaperService = {
   async getSubjects(): Promise<string[]> {
     const supabase = createClient()
 
-    const { data, error } = await supabase.from("past_papers").select("subject").distinct("subject").order("subject")
+    // Using a raw SQL query to get distinct subjects
+    const { data, error } = await supabase.rpc("get_distinct_subjects")
 
     if (error) {
       console.error("Error fetching subjects:", error)
-      return []
+
+      // Fallback: fetch all and filter in JavaScript
+      try {
+        const { data: allData, error: allError } = await supabase.from("past_papers").select("subject")
+
+        if (allError) throw allError
+
+        // Get unique subjects and sort them
+        const uniqueSubjects = [...new Set(allData.map((item) => item.subject))].sort()
+        return uniqueSubjects
+      } catch (fallbackError) {
+        console.error("Fallback error:", fallbackError)
+        return []
+      }
     }
 
-    return data.map((item) => item.subject)
+    return data as string[]
   },
 
   async getYears(): Promise<number[]> {
     const supabase = createClient()
 
-    const { data, error } = await supabase
-      .from("past_papers")
-      .select("year")
-      .distinct("year")
-      .order("year", { ascending: false })
+    // Using a raw SQL query to get distinct years
+    const { data, error } = await supabase.rpc("get_distinct_years")
 
     if (error) {
       console.error("Error fetching years:", error)
-      return []
+
+      // Fallback: fetch all and filter in JavaScript
+      try {
+        const { data: allData, error: allError } = await supabase.from("past_papers").select("year")
+
+        if (allError) throw allError
+
+        // Get unique years and sort them in descending order
+        const uniqueYears = [...new Set(allData.map((item) => item.year))].sort((a, b) => b - a)
+        return uniqueYears
+      } catch (fallbackError) {
+        console.error("Fallback error:", fallbackError)
+        return []
+      }
     }
 
-    return data.map((item) => item.year)
+    return data as number[]
   },
 
   async uploadPastPaper(
