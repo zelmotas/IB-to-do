@@ -1,120 +1,121 @@
-import { Suspense } from "react"
-import type { Metadata } from "next"
+"use client"
+
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Search, Upload, Book, Calendar } from "lucide-react"
+import { Book, FileText, AlertCircle } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Pagination } from "@/components/ui/pagination"
 import { pastPaperService } from "@/services/past-paper-service"
-import { PastPaperCard } from "@/components/past-papers/past-paper-card"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-
-export const metadata: Metadata = {
-  title: "Past Papers | IB Class Tracker",
-  description: "Browse and download IB past papers",
-}
-
-async function PastPapersContent() {
-  const papers = await pastPaperService.getPastPapers()
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {papers.length > 0 ? (
-          papers.slice(0, 6).map((paper) => <PastPaperCard key={paper.id} paper={paper} />)
-        ) : (
-          <div className="col-span-full text-center py-8">
-            <p className="text-muted-foreground">No past papers found.</p>
-            <Button asChild className="mt-4">
-              <Link href="/past-papers/upload">Upload a Past Paper</Link>
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {papers.length > 6 && (
-        <div className="flex justify-center">
-          <Button asChild variant="outline">
-            <Link href="/past-papers/search">View All Past Papers</Link>
-          </Button>
-        </div>
-      )}
-    </div>
-  )
-}
+import { useLanguage } from "@/contexts/language-context"
 
 export default function PastPapersPage() {
+  const { t } = useLanguage()
+  const [subjects, setSubjects] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const pageSize = 9 // Number of subjects per page
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        const result = await pastPaperService.getSubjectsPaginated({
+          page: currentPage,
+          pageSize,
+        })
+
+        setSubjects(result.data)
+        setTotalPages(result.totalPages)
+      } catch (err) {
+        console.error("Error fetching subjects:", err)
+        setError(t("errorFetchingSubjects"))
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchSubjects()
+  }, [currentPage, t])
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    // Scroll to top when changing pages
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Past Papers</h1>
-        <div className="flex gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/past-papers/search">
-              <Search className="mr-2 h-4 w-4" />
-              Search
-            </Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href="/past-papers/upload">
-              <Upload className="mr-2 h-4 w-4" />
-              Upload
-            </Link>
-          </Button>
+    <div className="container mx-auto py-8 px-4">
+      <h1 className="text-3xl font-bold mb-2">{t("pastPapers")}</h1>
+      <p className="text-muted-foreground mb-8">{t("browseBySubject")}</p>
+
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{t("error")}</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: pageSize }).map((_, index) => (
+            <Card key={index} className="h-[150px]">
+              <CardHeader>
+                <Skeleton className="h-6 w-3/4" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-2/3" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Browse by Subject</CardTitle>
-            <CardDescription>Find past papers by subject</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/past-papers/subjects">
-                <Book className="mr-2 h-4 w-4" />
-                Browse Subjects
+      ) : subjects.length === 0 ? (
+        <div className="text-center py-12">
+          <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">{t("noPastPapersFound")}</h2>
+          <p className="text-muted-foreground mb-6">{t("noPastPapersDescription")}</p>
+          <Link
+            href="/past-papers/upload"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            {t("uploadPastPapers")}
+          </Link>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {subjects.map((subject) => (
+              <Link key={subject} href={`/past-papers/subjects/${encodeURIComponent(subject)}`}>
+                <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Book className="mr-2 h-5 w-5" />
+                      {subject}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">{t("viewPastPapersForSubject", { subject })}</p>
+                  </CardContent>
+                </Card>
               </Link>
-            </Button>
-          </CardContent>
-        </Card>
+            ))}
+          </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Browse by Year</CardTitle>
-            <CardDescription>Find past papers by examination year</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/past-papers/years">
-                <Calendar className="mr-2 h-4 w-4" />
-                Browse Years
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Advanced Search</CardTitle>
-            <CardDescription>Search with filters</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/past-papers/search">
-                <Search className="mr-2 h-4 w-4" />
-                Advanced Search
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Recent Past Papers</h2>
-        <Suspense fallback={<div>Loading recent papers...</div>}>
-          <PastPapersContent />
-        </Suspense>
-      </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            className="mt-8"
+          />
+        </>
+      )}
     </div>
   )
 }

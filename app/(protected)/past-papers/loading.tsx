@@ -1,51 +1,24 @@
 import { Skeleton } from "@/components/ui/skeleton"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
-export default function Loading() {
+export default function PastPapersLoading() {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-10 w-40" />
-        <div className="flex gap-2">
-          <Skeleton className="h-9 w-24" />
-          <Skeleton className="h-9 w-24" />
-        </div>
-      </div>
+    <div className="container mx-auto py-8 px-4">
+      <Skeleton className="h-10 w-48 mb-2" />
+      <Skeleton className="h-5 w-64 mb-8" />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Card key={i}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {Array.from({ length: 9 }).map((_, index) => (
+          <Card key={index} className="h-[150px]">
             <CardHeader>
-              <Skeleton className="h-6 w-40" />
-              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-6 w-3/4" />
             </CardHeader>
             <CardContent>
-              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-2/3" />
             </CardContent>
           </Card>
         ))}
-      </div>
-
-      <div>
-        <Skeleton className="h-8 w-48 mb-4" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-full" />
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-4 w-1/3" />
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <Skeleton className="h-9 w-20" />
-                <Skeleton className="h-9 w-20" />
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
       </div>
     </div>
   )

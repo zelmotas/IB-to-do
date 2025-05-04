@@ -1,6 +1,19 @@
 import { createClient } from "@/lib/supabase"
 import type { PastPaper, PastPaperFilters } from "@/types/past-paper"
 
+export interface PaginationOptions {
+  page: number
+  pageSize: number
+}
+
+export interface PaginatedResult<T> {
+  data: T[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
 export const pastPaperService = {
   async getPastPapers(filters: PastPaperFilters = {}): Promise<PastPaper[]> {
     const supabase = createClient()
@@ -54,58 +67,74 @@ export const pastPaperService = {
     return data as PastPaper
   },
 
-  async getSubjects(): Promise<string[]> {
+  async getSubjectsPaginated(options: PaginationOptions): Promise<PaginatedResult<string>> {
     const supabase = createClient()
+    const { page, pageSize } = options
 
-    // Using a raw SQL query to get distinct subjects
-    const { data, error } = await supabase.rpc("get_distinct_subjects")
+    try {
+      // First, get the total count of distinct subjects
+      const { count, error: countError } = await supabase
+        .from("past_papers")
+        .select("subject", { count: "exact", head: true })
+        .is("subject", "not.null")
 
-    if (error) {
-      console.error("Error fetching subjects:", error)
+      if (countError) throw countError
 
-      // Fallback: fetch all and filter in JavaScript
-      try {
-        const { data: allData, error: allError } = await supabase.from("past_papers").select("subject")
+      // Calculate pagination values
+      const total = count || 0
+      const totalPages = Math.ceil(total / pageSize)
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
 
-        if (allError) throw allError
+      // Get paginated subjects
+      const { data, error } = await supabase
+        .from("past_papers")
+        .select("subject")
+        .is("subject", "not.null")
+        .order("subject")
+        .range(from, to)
 
-        // Get unique subjects and sort them
-        const uniqueSubjects = [...new Set(allData.map((item) => item.subject))].sort()
-        return uniqueSubjects
-      } catch (fallbackError) {
-        console.error("Fallback error:", fallbackError)
-        return []
+      if (error) throw error
+
+      // Extract unique subjects
+      const uniqueSubjects = [...new Set(data.map((item) => item.subject))]
+
+      return {
+        data: uniqueSubjects,
+        total,
+        page,
+        pageSize,
+        totalPages,
+      }
+    } catch (error) {
+      console.error("Error fetching paginated subjects:", error)
+
+      // Return empty result with pagination info
+      return {
+        data: [],
+        total: 0,
+        page,
+        pageSize,
+        totalPages: 0,
       }
     }
-
-    return data as string[]
   },
 
   async getYears(): Promise<number[]> {
     const supabase = createClient()
 
-    // Using a raw SQL query to get distinct years
-    const { data, error } = await supabase.rpc("get_distinct_years")
+    try {
+      const { data, error } = await supabase.from("past_papers").select("year").order("year", { ascending: false })
 
-    if (error) {
+      if (error) throw error
+
+      // Extract unique years
+      const uniqueYears = [...new Set(data.map((item) => item.year))]
+      return uniqueYears
+    } catch (error) {
       console.error("Error fetching years:", error)
-
-      // Fallback: fetch all and filter in JavaScript
-      try {
-        const { data: allData, error: allError } = await supabase.from("past_papers").select("year")
-
-        if (allError) throw allError
-
-        // Get unique years and sort them in descending order
-        const uniqueYears = [...new Set(allData.map((item) => item.year))].sort((a, b) => b - a)
-        return uniqueYears
-      } catch (fallbackError) {
-        console.error("Fallback error:", fallbackError)
-        return []
-      }
+      return []
     }
-
-    return data as number[]
   },
 
   async uploadPastPaper(
