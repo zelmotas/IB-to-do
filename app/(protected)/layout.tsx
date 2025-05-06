@@ -1,5 +1,9 @@
 import type { ReactNode } from "react"
-import { NavMenu, DesktopNavMenu } from "@/components/navigation/nav-menu"
+import { Sidebar } from "@/components/sidebar"
+import { ModeToggle } from "@/components/mode-toggle"
+import { AuthButton } from "@/components/auth/auth-button"
+import { LanguageToggle } from "@/components/language-toggle"
+import { AiChatAssistant } from "@/components/ai-chat-assistant"
 
 interface ProtectedLayoutProps {
   children: ReactNode
@@ -8,16 +12,21 @@ interface ProtectedLayoutProps {
 export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   return (
     <div className="flex min-h-screen">
-      <div className="hidden md:flex w-64 border-r bg-background">
-        <DesktopNavMenu />
-      </div>
-      <div className="flex flex-col flex-1">
-        <header className="h-14 border-b flex items-center px-4 sticky top-0 bg-background z-10">
-          <NavMenu />
-          <div className="ml-auto"></div>
+      <Sidebar />
+      <div className="flex-1 flex flex-col">
+        <header className="h-16 border-b flex items-center justify-between px-6">
+          <h1 className="text-xl font-semibold">IB Class Tracker</h1>
+          <div className="flex items-center gap-4">
+            <LanguageToggle />
+            <ModeToggle />
+            <AuthButton />
+          </div>
         </header>
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className="flex-1 p-6 overflow-auto">
+          <div className="max-w-7xl mx-auto">{children}</div>
+        </main>
       </div>
+      <AiChatAssistant />
     </div>
   )
 }

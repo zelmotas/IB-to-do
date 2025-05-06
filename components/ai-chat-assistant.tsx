@@ -44,6 +44,8 @@ export function AiChatAssistant() {
   const [typingIndex, setTypingIndex] = useState(0)
   const [fullResponse, setFullResponse] = useState("")
 
+  //  setTypingIndex] = useState(0)
+
   // Load chat history from localStorage when component mounts
   useEffect(() => {
     if (user) {
