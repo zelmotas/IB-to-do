@@ -1,3 +1,9 @@
+export interface PastPaperFilters {
+  subject?: string
+  year?: number
+  level?: string
+}
+
 export interface PastPaper {
   id: string
   title: string
@@ -14,13 +20,4 @@ export interface PastPaper {
   tags?: string[]
   uploaded_by?: string
   uploaded_at?: string
-}
-
-export interface PastPaperFilters {
-  subject?: string
-  year?: number
-  month?: string
-  language?: string
-  level?: string
-  searchQuery?: string
 }

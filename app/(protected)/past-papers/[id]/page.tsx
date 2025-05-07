@@ -1,10 +1,11 @@
-import { Suspense } from "react"
+import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Download } from "lucide-react"
-import { pastPaperService } from "@/services/past-paper-service"
+import { notFound } from "next/navigation"
+import { ArrowLeft, Calendar, Download, FileText, BookOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { pastPaperService } from "@/services/past-paper-service"
 
 interface PastPaperPageProps {
   params: {
@@ -12,78 +13,146 @@ interface PastPaperPageProps {
   }
 }
 
-async function PastPaperContent({ id }: { id: string }) {
-  const paper = await pastPaperService.getPastPaperById(id)
+export async function generateMetadata({ params }: PastPaperPageProps): Promise<Metadata> {
+  const paper = await pastPaperService.getPastPaperById(params.id)
 
   if (!paper) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-muted-foreground">Past paper not found.</p>
-        <Button asChild className="mt-4">
-          <Link href="/past-papers">Back to Past Papers</Link>
-        </Button>
-      </div>
-    )
+    return {
+      title: "Past Paper Not Found | IB Class Tracker",
+    }
+  }
+
+  return {
+    title: `${paper.title} | IB Class Tracker`,
+    description: paper.description || `${paper.subject} past paper from ${paper.year}`,
+  }
+}
+
+export default async function PastPaperPage({ params }: PastPaperPageProps) {
+  const paper = await pastPaperService.getPastPaperById(params.id)
+
+  if (!paper) {
+    notFound()
+  }
+
+  const formatDate = () => {
+    let dateStr = `${paper.year}`
+    if (paper.month) {
+      dateStr = `${paper.month} ${paper.year}`
+    }
+    return dateStr
   }
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">{paper.title}</CardTitle>
-          <CardDescription>
-            Paper {paper.paperNumber} - {paper.month} {paper.year}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{paper.subject}</Badge>
-            <Badge variant="outline">{paper.year}</Badge>
-            <Badge variant="outline">{paper.month}</Badge>
-            <Badge variant="outline">{paper.level}</Badge>
-            <Badge variant="outline">{paper.language}</Badge>
-          </div>
-
-          {paper.description && (
-            <div>
-              <h3 className="text-sm font-medium mb-1">Description</h3>
-              <p className="text-sm text-muted-foreground">{paper.description}</p>
-            </div>
-          )}
-
-          <div className="pt-4">
-            <Button asChild size="lg" className="w-full sm:w-auto">
-              <a href={paper.fileUrl} download target="_blank" rel="noopener noreferrer">
-                <Download className="mr-2 h-4 w-4" />
-                Download PDF
-              </a>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex justify-between">
-        <Button asChild variant="outline">
+      <div className="flex items-center">
+        <Button asChild variant="ghost" size="sm" className="mr-2">
           <Link href="/past-papers">
-            <ArrowLeft className="mr-2 h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 mr-1" />
             Back to Past Papers
           </Link>
         </Button>
+      </div>
 
-        <Button asChild variant="outline">
-          <Link href={`/past-papers/search?subject=${encodeURIComponent(paper.subject)}`}>
-            View More {paper.subject} Papers
-          </Link>
-        </Button>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-2xl">{paper.title}</CardTitle>
+            <CardDescription>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <BookOpen className="h-3 w-3" />
+                  {paper.subject}
+                </Badge>
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {formatDate()}
+                </Badge>
+                <Badge variant="secondary">{paper.level}</Badge>
+              </div>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {paper.description && (
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Description</h3>
+                  <p className="text-muted-foreground">{paper.description}</p>
+                </div>
+              )}
+
+              <div>
+                <h3 className="text-lg font-medium mb-2">Details</h3>
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                  <div>
+                    <dt className="text-sm text-muted-foreground">Subject</dt>
+                    <dd>{paper.subject}</dd>
+                  </div>
+                  {paper.subject_code && (
+                    <div>
+                      <dt className="text-sm text-muted-foreground">Subject Code</dt>
+                      <dd>{paper.subject_code}</dd>
+                    </div>
+                  )}
+                  <div>
+                    <dt className="text-sm text-muted-foreground">Year</dt>
+                    <dd>{paper.year}</dd>
+                  </div>
+                  {paper.month && (
+                    <div>
+                      <dt className="text-sm text-muted-foreground">Month</dt>
+                      <dd>{paper.month}</dd>
+                    </div>
+                  )}
+                  <div>
+                    <dt className="text-sm text-muted-foreground">Paper Number</dt>
+                    <dd>{paper.paper_number}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-muted-foreground">Level</dt>
+                    <dd>{paper.level}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-muted-foreground">Language</dt>
+                    <dd>{paper.language}</dd>
+                  </div>
+                </dl>
+              </div>
+
+              {paper.tags && paper.tags.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Tags</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {paper.tags.map((tag) => (
+                      <Badge key={tag} variant="outline">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Download</CardTitle>
+            <CardDescription>Download this past paper</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-center p-6 border rounded-lg">
+              <FileText className="h-16 w-16 text-muted-foreground" />
+            </div>
+            <Button asChild className="w-full">
+              <a href={paper.file_url} target="_blank" rel="noopener noreferrer" download>
+                <Download className="mr-2 h-4 w-4" />
+                Download Past Paper
+              </a>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
-  )
-}
-
-export default function PastPaperPage({ params }: PastPaperPageProps) {
-  return (
-    <Suspense fallback={<div>Loading past paper...</div>}>
-      <PastPaperContent id={params.id} />
-    </Suspense>
   )
 }

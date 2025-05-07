@@ -109,7 +109,7 @@ export function NavMenu() {
                 )}
               >
                 <FileText className="h-4 w-4" />
-                {t("pastPapers")}
+                {t("past Papers")}
               </Link>
             </nav>
           </div>
@@ -119,7 +119,7 @@ export function NavMenu() {
   )
 }
 
-// Add the missing DesktopNavMenu component
+// Desktop navigation menu component
 export function DesktopNavMenu() {
   const pathname = usePathname()
   const { t } = useLanguage()
@@ -160,7 +160,7 @@ export function DesktopNavMenu() {
           )}
         >
           <FileText className="h-4 w-4" />
-          {t("pastPapers")}
+          {t("past Papers")}
         </Link>
       </nav>
     </div>
