@@ -2,18 +2,18 @@ export interface PastPaper {
   id: string
   title: string
   subject: string
-  subjectCode?: string
+  subject_code?: string
   year: number
   month?: string
   language: string
-  paperNumber: number
-  level: "SL" | "HL" | "Both"
-  fileUrl: string
-  thumbnailUrl?: string
-  uploadedBy: string
-  uploadedAt: string
-  tags?: string[]
+  paper_number: number
+  level: string
   description?: string
+  file_url: string
+  thumbnail_url?: string
+  tags?: string[]
+  uploaded_by?: string
+  uploaded_at?: string
 }
 
 export interface PastPaperFilters {

@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SubjectTasks } from "@/components/subject-tasks"
 import { ibSubjects } from "@/data/ib-subjects"
 import type { Subject } from "@/types/todo"
@@ -20,9 +19,10 @@ import { ViewToggle } from "@/components/view-toggle"
 import { AiChatAssistant } from "@/components/ai-chat-assistant"
 import { SyncService } from "@/lib/sync-service"
 import { cn } from "@/lib/utils"
+import { PastPaperSection } from "@/components/past-papers/past-paper-section"
 
-// Import Lucide icons at the top of the file
-import { Home, Sun, Moon, RefreshCw } from "lucide-react"
+// Import Lucide icons
+import { BookOpen, CalendarIcon, FileText, Home, Moon, RefreshCw, Search, Sun } from "lucide-react"
 
 // Add this import at the top
 import { motion, AnimatePresence } from "framer-motion"
@@ -33,6 +33,7 @@ export function IbTodoTracker() {
   const [homeView, setHomeView] = useState<"calendar" | "list">("list")
   const [isSyncing, setIsSyncing] = useState(false)
   const [hasUpdates, setHasUpdates] = useState(false)
+  const [activeTab, setActiveTab] = useState("home")
   const { setTheme, theme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const { t } = useLanguage()
@@ -425,165 +426,234 @@ export function IbTodoTracker() {
     <div className="w-9 h-9"></div>
   )
 
+  // Navigation items
+  const navItems = [
+    { id: "home", icon: Home, label: t("home") },
+    { id: "calendar", icon: CalendarIcon, label: t("calendar") },
+    { id: "past-papers", icon: FileText, label: t("pastPapers") },
+    { id: "search", icon: Search, label: t("search") },
+  ]
+
   return (
-    <div className="container mx-auto max-w-5xl">
+    <div className="container mx-auto max-w-7xl">
       <NotificationChecker />
 
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-center">{t("appTitle")}</h1>
-        <div className="flex gap-2">
-          {user && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={syncWithServer}
-              disabled={isSyncing}
-              className={cn("border-2 transition-all duration-200 hover:scale-110", hasUpdates && "border-primary")}
-              aria-label={t("syncData")}
-            >
-              <RefreshCw
-                className={cn("h-[1.2rem] w-[1.2rem]", isSyncing && "animate-spin", hasUpdates && "text-primary")}
-              />
-            </Button>
-          )}
-          <AuthButton />
-          <LanguageToggle />
-          {themeToggle}
-        </div>
-      </div>
-
-      <Tabs defaultValue="home">
-        <TabsList className="grid w-full mb-6" style={{ gridTemplateColumns: `repeat(${subjects.length + 1}, 1fr)` }}>
-          <TabsTrigger value="home" className="text-center flex items-center justify-center">
-            <Home className="w-4 h-4 mr-2" />
-            {t("home")}
-          </TabsTrigger>
-          {subjects.map((subject) => (
-            <TabsTrigger key={subject.id} value={subject.id} className="text-center flex items-center justify-center">
-              {t(subject.id)}
-              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full w-6 h-6 flex items-center justify-center">
-                {calculateProgress(subject)}%
-              </span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsContent value="home">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <ViewToggle view={homeView} onViewChange={setHomeView} />
-
-            <AnimatePresence mode="wait">
-              {homeView === "calendar" ? (
-                <motion.div
-                  key="calendar"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
+      <div className="flex flex-col min-h-screen">
+        {/* Header */}
+        <header className="py-4 border-b">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">IB Class Tracker</h1>
+            <div className="flex gap-2">
+              {user && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={syncWithServer}
+                  disabled={isSyncing}
+                  className={cn("border-2 transition-all duration-200 hover:scale-110", hasUpdates && "border-primary")}
+                  aria-label={t("syncData")}
                 >
-                  <CalendarView tasks={upcomingTasks} subjects={subjects} addTask={addTask} />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="list"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <HomeTasks
-                    tasks={upcomingTasks}
-                    toggleTaskCompletion={toggleTaskCompletion}
-                    deleteTask={deleteTask}
+                  <RefreshCw
+                    className={cn("h-[1.2rem] w-[1.2rem]", isSyncing && "animate-spin", hasUpdates && "text-primary")}
                   />
+                </Button>
+              )}
+              <AuthButton />
+              <LanguageToggle />
+              {themeToggle}
+            </div>
+          </div>
+        </header>
+
+        {/* Main content */}
+        <div className="flex flex-1 mt-4">
+          {/* Navigation sidebar */}
+          <div className="w-64 pr-6 hidden md:block">
+            <nav className="space-y-1 sticky top-4">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  className={cn("nav-item w-full text-left", activeTab === item.id && "active")}
+                  onClick={() => setActiveTab(item.id)}
+                >
+                  <item.icon className="h-5 w-5" />
+                  <span>{item.label}</span>
+                </button>
+              ))}
+
+              <div className="pt-4 mt-4 border-t">
+                <h3 className="font-medium text-sm mb-2">{t("subjects")}</h3>
+                {subjects.map((subject) => (
+                  <button
+                    key={subject.id}
+                    className={cn("nav-item w-full text-left", activeTab === subject.id && "active")}
+                    onClick={() => setActiveTab(subject.id)}
+                  >
+                    <BookOpen className="h-5 w-5" />
+                    <span>{t(subject.name)}</span>
+                    <span className="ml-auto bg-primary/10 text-xs rounded-full w-6 h-6 flex items-center justify-center">
+                      {calculateProgress(subject)}%
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </nav>
+          </div>
+
+          {/* Mobile navigation */}
+          <div className="md:hidden mb-4 w-full">
+            <div className="flex overflow-x-auto pb-2 gap-2">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  className={cn("nav-item flex-shrink-0", activeTab === item.id && "active")}
+                  onClick={() => setActiveTab(item.id)}
+                >
+                  <item.icon className="h-5 w-5" />
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Content area */}
+          <div className="flex-1">
+            <AnimatePresence mode="wait">
+              {activeTab === "home" && (
+                <motion.div
+                  key="home"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="space-y-6"
+                >
+                  <ViewToggle view={homeView} onViewChange={setHomeView} />
+
+                  {homeView === "calendar" ? (
+                    <CalendarView tasks={upcomingTasks} subjects={subjects} addTask={addTask} />
+                  ) : (
+                    <HomeTasks
+                      tasks={upcomingTasks}
+                      toggleTaskCompletion={toggleTaskCompletion}
+                      deleteTask={deleteTask}
+                    />
+                  )}
                 </motion.div>
               )}
-            </AnimatePresence>
-          </motion.div>
-        </TabsContent>
 
-        {subjects.map((subject) => (
-          <TabsContent key={subject.id} value={subject.id}>
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <SubjectTasks
-                subject={subject}
-                addTask={addTask}
-                toggleTaskCompletion={toggleTaskCompletion}
-                deleteTask={deleteTask}
-              />
-            </motion.div>
-          </TabsContent>
-        ))}
-      </Tabs>
-      <div className="flex justify-center mt-4">
-        <Button variant="link" size="sm" onClick={() => setShowCopyright(!showCopyright)}>
-          {showCopyright ? t("hideCopyright") : t("showCopyright")}
-        </Button>
-      </div>
-      {showCopyright && (
-        <div className="text-center text-xs text-muted-foreground mt-2">
-          <p className="mb-2">
-            <a
-              href="https://ibtrack.online"
-              className="text-primary hover:underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              IB to-do list tracker
-            </a>{" "}
-            by{" "}
-            <a
-              href="https://www.linkedin.com/in/zayd-el-motassadeq-723b73212/"
-              className="text-primary hover:underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Zayd El Motassadeq
-            </a>{" "}
-            is licensed under{" "}
-            <a
-              href="https://creativecommons.org/licenses/by-nc-nd/4.0/?ref=chooser-v1"
-              className="text-primary hover:underline"
-              target="_blank"
-              rel="license noopener noreferrer"
-            >
-              CC BY-NC-ND 4.0
-            </a>
-          </p>
-          <div className="flex items-center justify-center gap-1">
-            <img
-              src="https://mirrors.creativecommons.org/presskit/icons/cc.svg?ref=chooser-v1"
-              alt="CC"
-              className="h-5"
-            />
-            <img
-              src="https://mirrors.creativecommons.org/presskit/icons/by.svg?ref=chooser-v1"
-              alt="BY"
-              className="h-5"
-            />
-            <img
-              src="https://mirrors.creativecommons.org/presskit/icons/nc.svg?ref=chooser-v1"
-              alt="NC"
-              className="h-5"
-            />
-            <img
-              src="https://mirrors.creativecommons.org/presskit/icons/nd.svg?ref=chooser-v1"
-              alt="ND"
-              className="h-5"
-            />
+              {activeTab === "calendar" && (
+                <motion.div key="calendar" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <CalendarView tasks={upcomingTasks} subjects={subjects} addTask={addTask} />
+                </motion.div>
+              )}
+
+              {activeTab === "past-papers" && (
+                <motion.div key="past-papers" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <PastPaperSection />
+                </motion.div>
+              )}
+
+              {activeTab === "search" && (
+                <motion.div key="search" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <div className="space-y-4">
+                    <h2 className="text-2xl font-bold">{t("search")}</h2>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="search"
+                        placeholder={t("searchPlaceholder")}
+                        className="w-full pl-10 pr-4 py-2 border rounded-md"
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {subjects.map(
+                (subject) =>
+                  activeTab === subject.id && (
+                    <motion.div
+                      key={subject.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      <SubjectTasks
+                        subject={subject}
+                        addTask={addTask}
+                        toggleTaskCompletion={toggleTaskCompletion}
+                        deleteTask={deleteTask}
+                      />
+                    </motion.div>
+                  ),
+              )}
+            </AnimatePresence>
           </div>
         </div>
-      )}
+
+        {/* Footer */}
+        <footer className="mt-8 py-4 border-t text-center text-sm text-muted-foreground">
+          <div className="flex justify-center mt-4">
+            <Button variant="link" size="sm" onClick={() => setShowCopyright(!showCopyright)}>
+              {showCopyright ? t("hideCopyright") : t("showCopyright")}
+            </Button>
+          </div>
+          {showCopyright && (
+            <div className="text-center text-xs text-muted-foreground mt-2">
+              <p className="mb-2">
+                <a
+                  href="https://ibtrack.online"
+                  className="text-primary hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  IB to-do list tracker
+                </a>{" "}
+                by{" "}
+                <a
+                  href="https://www.linkedin.com/in/zayd-el-motassadeq-723b73212/"
+                  className="text-primary hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Zayd El Motassadeq
+                </a>{" "}
+                is licensed under{" "}
+                <a
+                  href="https://creativecommons.org/licenses/by-nc-nd/4.0/?ref=chooser-v1"
+                  className="text-primary hover:underline"
+                  target="_blank"
+                  rel="license noopener noreferrer"
+                >
+                  CC BY-NC-ND 4.0
+                </a>
+              </p>
+              <div className="flex items-center justify-center gap-1">
+                <img
+                  src="https://mirrors.creativecommons.org/presskit/icons/cc.svg?ref=chooser-v1"
+                  alt="CC"
+                  className="h-5"
+                />
+                <img
+                  src="https://mirrors.creativecommons.org/presskit/icons/by.svg?ref=chooser-v1"
+                  alt="BY"
+                  className="h-5"
+                />
+                <img
+                  src="https://mirrors.creativecommons.org/presskit/icons/nc.svg?ref=chooser-v1"
+                  alt="NC"
+                  className="h-5"
+                />
+                <img
+                  src="https://mirrors.creativecommons.org/presskit/icons/nd.svg?ref=chooser-v1"
+                  alt="ND"
+                  className="h-5"
+                />
+              </div>
+            </div>
+          )}
+        </footer>
+      </div>
 
       {/* AI Chat Assistant */}
       <AiChatAssistant />

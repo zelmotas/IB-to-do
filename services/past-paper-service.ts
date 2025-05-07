@@ -1,25 +1,13 @@
 import { createClient } from "@/lib/supabase"
 import type { PastPaper, PastPaperFilters } from "@/types/past-paper"
 
-export interface PaginationOptions {
-  page: number
-  pageSize: number
-}
-
-export interface PaginatedResult<T> {
-  data: T[]
-  total: number
-  page: number
-  pageSize: number
-  totalPages: number
-}
-
 export const pastPaperService = {
-  async getPastPapers(filters: PastPaperFilters = {}): Promise<PastPaper[]> {
+  async getPastPapers(filters: PastPaperFilters & { limit?: number } = {}): Promise<PastPaper[]> {
     const supabase = createClient()
 
     let query = supabase.from("past_papers").select("*")
 
+    // Apply filters
     if (filters.subject) {
       query = query.eq("subject", filters.subject)
     }
@@ -28,23 +16,31 @@ export const pastPaperService = {
       query = query.eq("year", filters.year)
     }
 
-    if (filters.month) {
-      query = query.eq("month", filters.month)
+    if (filters.level) {
+      query = query.eq("level", filters.level)
     }
 
     if (filters.language) {
       query = query.eq("language", filters.language)
     }
 
-    if (filters.level) {
-      query = query.eq("level", filters.level)
+    if (filters.month) {
+      query = query.eq("month", filters.month)
     }
 
     if (filters.searchQuery) {
       query = query.or(`title.ilike.%${filters.searchQuery}%,description.ilike.%${filters.searchQuery}%`)
     }
 
-    const { data, error } = await query.order("year", { ascending: false })
+    // Apply limit if specified
+    if (filters.limit) {
+      query = query.limit(filters.limit)
+    }
+
+    // Order by most recent
+    query = query.order("uploaded_at", { ascending: false })
+
+    const { data, error } = await query
 
     if (error) {
       console.error("Error fetching past papers:", error)
@@ -67,81 +63,13 @@ export const pastPaperService = {
     return data as PastPaper
   },
 
-  async getSubjectsPaginated(options: PaginationOptions): Promise<PaginatedResult<string>> {
-    const supabase = createClient()
-    const { page, pageSize } = options
-
-    try {
-      // First, get the total count of distinct subjects
-      const { count, error: countError } = await supabase
-        .from("past_papers")
-        .select("subject", { count: "exact", head: true })
-        .is("subject", "not.null")
-
-      if (countError) throw countError
-
-      // Calculate pagination values
-      const total = count || 0
-      const totalPages = Math.ceil(total / pageSize)
-      const from = (page - 1) * pageSize
-      const to = from + pageSize - 1
-
-      // Get paginated subjects
-      const { data, error } = await supabase
-        .from("past_papers")
-        .select("subject")
-        .is("subject", "not.null")
-        .order("subject")
-        .range(from, to)
-
-      if (error) throw error
-
-      // Extract unique subjects
-      const uniqueSubjects = [...new Set(data.map((item) => item.subject))]
-
-      return {
-        data: uniqueSubjects,
-        total,
-        page,
-        pageSize,
-        totalPages,
-      }
-    } catch (error) {
-      console.error("Error fetching paginated subjects:", error)
-
-      // Return empty result with pagination info
-      return {
-        data: [],
-        total: 0,
-        page,
-        pageSize,
-        totalPages: 0,
-      }
-    }
-  },
-
-  async getYears(): Promise<number[]> {
-    const supabase = createClient()
-
-    try {
-      const { data, error } = await supabase.from("past_papers").select("year").order("year", { ascending: false })
-
-      if (error) throw error
-
-      // Extract unique years
-      const uniqueYears = [...new Set(data.map((item) => item.year))]
-      return uniqueYears
-    } catch (error) {
-      console.error("Error fetching years:", error)
-      return []
-    }
-  },
-
   async uploadPastPaper(
     file: File,
-    paperData: Omit<PastPaper, "id" | "fileUrl" | "uploadedAt" | "uploadedBy">,
+    metadata: Omit<PastPaper, "id" | "file_url" | "thumbnail_url" | "uploaded_at" | "tags">,
   ): Promise<PastPaper | null> {
     const supabase = createClient()
+
+    // Get current user
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -154,34 +82,95 @@ export const pastPaperService = {
     // Upload file to storage
     const fileExt = file.name.split(".").pop()
     const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`
-    const filePath = `${user.id}/${fileName}`
+    const filePath = `past-papers/${fileName}`
 
-    const { data: fileData, error: fileError } = await supabase.storage.from("past-papers").upload(filePath, file)
+    const { data: uploadData, error: uploadError } = await supabase.storage.from("past-papers").upload(filePath, file)
 
-    if (fileError) {
-      console.error("Error uploading file:", fileError)
+    if (uploadError) {
+      console.error("Error uploading file:", uploadError)
       return null
     }
 
-    // Get public URL for the file
-    const { data: urlData } = supabase.storage.from("past-papers").getPublicUrl(filePath)
+    // Get public URL
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("past-papers").getPublicUrl(filePath)
 
-    // Insert record into database
+    // Insert record in database
     const { data, error } = await supabase
       .from("past_papers")
       .insert({
-        ...paperData,
-        fileUrl: urlData.publicUrl,
-        uploadedBy: user.id,
+        ...metadata,
+        file_url: publicUrl,
+        uploaded_by: user.id,
+        uploaded_at: new Date().toISOString(),
       })
       .select()
       .single()
 
     if (error) {
-      console.error("Error inserting past paper:", error)
+      console.error("Error inserting past paper record:", error)
       return null
     }
 
     return data as PastPaper
+  },
+
+  async getSubjects(): Promise<string[]> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase.from("past_papers").select("subject").order("subject")
+
+    if (error) {
+      console.error("Error fetching subjects:", error)
+      return []
+    }
+
+    // Extract unique subjects
+    const subjects = [...new Set(data.map((item) => item.subject))]
+    return subjects
+  },
+
+  async getYears(): Promise<number[]> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase.from("past_papers").select("year").order("year", { ascending: false })
+
+    if (error) {
+      console.error("Error fetching years:", error)
+      return []
+    }
+
+    // Extract unique years
+    const years = [...new Set(data.map((item) => item.year))]
+    return years
+  },
+
+  async getSubjectsPaginated({
+    page = 1,
+    pageSize = 9,
+  }: { page: number; pageSize: number }): Promise<{ data: string[]; totalPages: number }> {
+    const supabase = createClient()
+
+    // Get all subjects first
+    const { data, error } = await supabase.from("past_papers").select("subject")
+
+    if (error) {
+      console.error("Error fetching subjects:", error)
+      return { data: [], totalPages: 0 }
+    }
+
+    // Extract unique subjects
+    const allSubjects = [...new Set(data.map((item) => item.subject))].sort()
+
+    // Calculate pagination
+    const totalPages = Math.ceil(allSubjects.length / pageSize)
+    const start = (page - 1) * pageSize
+    const end = start + pageSize
+
+    return {
+      data: allSubjects.slice(start, end),
+      totalPages,
+    }
   },
 }

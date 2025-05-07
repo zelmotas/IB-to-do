@@ -68,9 +68,9 @@
     "react-markdown": "latest",
     "framer-motion": "latest",
     "@prisma/client": "latest",
+    "@supabase/supabase-js": "latest",
     "@vercel/analytics": "latest",
-    "@vercel/speed-insights": "latest",
-    "@supabase/supabase-js": "latest"
+    "@vercel/speed-insights": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

@@ -9,6 +9,7 @@ interface User {
   id: string
   email: string
   name?: string
+  avatar_url?: string
 }
 
 interface AuthContextType {
@@ -47,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               id: supabaseUser.id,
               email: supabaseUser.email || "",
               name: supabaseUser.user_metadata?.name,
+              avatar_url: supabaseUser.user_metadata?.avatar_url,
             })
           }
         }
@@ -68,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: session.user.id,
           email: session.user.email || "",
           name: session.user.user_metadata?.name,
+          avatar_url: session.user.user_metadata?.avatar_url,
         })
       } else {
         setUser(null)
@@ -95,16 +98,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       SessionStorage.set("login_timestamp", Date.now())
 
       toast({
-        title: "Connexion réussie",
-        description: `Bienvenue, ${email}!`,
+        title: "Sign in successful",
+        description: `Welcome back, ${email}!`,
       })
 
       return
     } catch (error: any) {
       console.error("Sign in error:", error)
       toast({
-        title: "Erreur de connexion",
-        description: error.message || "Email ou mot de passe incorrect",
+        title: "Sign in error",
+        description: error.message || "Incorrect email or password",
         variant: "destructive",
       })
       throw error
@@ -126,16 +129,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       toast({
-        title: "Compte créé avec succès",
-        description: `Bienvenue, ${email}! Veuillez vérifier votre email pour confirmer votre compte.`,
+        title: "Account created successfully",
+        description: `Welcome, ${email}! Please check your email to confirm your account.`,
       })
 
       return
     } catch (error: any) {
       console.error("Sign up error:", error)
       toast({
-        title: "Erreur d'inscription",
-        description: error.message || "Une erreur est survenue",
+        title: "Sign up error",
+        description: error.message || "An error occurred",
         variant: "destructive",
       })
       throw error
@@ -154,8 +157,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       toast({
-        title: "Déconnexion réussie",
-        description: "À bientôt!",
+        title: "Signed out successfully",
+        description: "See you soon!",
       })
     } catch (error) {
       console.error("Sign out error:", error)
@@ -179,8 +182,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error("Google sign in error:", error)
       toast({
-        title: "Erreur de connexion",
-        description: error.message || "Une erreur est survenue",
+        title: "Sign in error",
+        description: error.message || "An error occurred",
         variant: "destructive",
       })
     }
@@ -201,8 +204,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error("GitHub sign in error:", error)
       toast({
-        title: "Erreur de connexion",
-        description: error.message || "Une erreur est survenue",
+        title: "Sign in error",
+        description: error.message || "An error occurred",
         variant: "destructive",
       })
     }
@@ -220,14 +223,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       toast({
-        title: "Email envoyé",
-        description: "Veuillez vérifier votre email pour réinitialiser votre mot de passe.",
+        title: "Email sent",
+        description: "Please check your email to reset your password.",
       })
     } catch (error: any) {
       console.error("Password reset error:", error)
       toast({
-        title: "Erreur de réinitialisation",
-        description: error.message || "Une erreur est survenue",
+        title: "Reset error",
+        description: error.message || "An error occurred",
         variant: "destructive",
       })
       throw error
@@ -248,14 +251,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       toast({
-        title: "Mot de passe mis à jour",
-        description: "Votre mot de passe a été mis à jour avec succès.",
+        title: "Password updated",
+        description: "Your password has been updated successfully.",
       })
     } catch (error: any) {
       console.error("Update password error:", error)
       toast({
-        title: "Erreur de mise à jour",
-        description: error.message || "Une erreur est survenue",
+        title: "Update error",
+        description: error.message || "An error occurred",
         variant: "destructive",
       })
       throw error
