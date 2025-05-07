@@ -1,3 +1,122 @@
+"use client"
+
+// This is a simplified translation service
+const translations = {
+  en: {
+    // General
+    home: "Home",
+    dashboard: "Dashboard",
+    calendar: "Calendar",
+    pastPapers: "Past Papers",
+    ibClassTracker: "IB Class Tracker",
+    subjects: "Subjects",
+    tasks: "Tasks",
+    settings: "Settings",
+    profile: "Profile",
+    signOut: "Sign Out",
+    signIn: "Sign In",
+    signUp: "Sign Up",
+
+    // Past Papers specific
+    browsePastPapers: "Browse Past Papers",
+    searchPastPapers: "Search Past Papers",
+    uploadPastPaper: "Upload Past Paper",
+    pastPaperSearch: "Past Paper Search",
+    pastPaperDetails: "Past Paper Details",
+    viewPastPaper: "View Past Paper",
+    downloadPastPaper: "Download Past Paper",
+    browseBySubject: "Browse by Subject",
+    browseByYear: "Browse by Year",
+    noPastPapersFound: "No Past Papers Found",
+    noPastPapersDescription: "We couldn't find any past papers matching your criteria.",
+    viewPastPapersForSubject: "View past papers for {{subject}}",
+    recentPastPapers: "Recent Past Papers",
+    recentlyAddedPapers: "Recently added papers",
+    noPastPapersYet: "No past papers uploaded yet",
+    viewAllPapers: "View All Papers",
+
+    // Form fields
+    title: "Title",
+    subject: "Subject",
+    subjectCode: "Subject Code",
+    year: "Year",
+    month: "Month",
+    language: "Language",
+    paperNumber: "Paper Number",
+    level: "Level",
+    description: "Description",
+    file: "File",
+
+    // Status and messages
+    uploadSuccess: "Upload Successful",
+    pastPaperUploaded: "Your past paper has been uploaded successfully",
+    uploadError: "Upload Error",
+    pastPaperUploadFailed: "Failed to upload past paper",
+    uploading: "Uploading...",
+
+    // Options
+    may: "May",
+    november: "November",
+    both: "Both SL & HL",
+
+    // Placeholders
+    pastPaperTitlePlaceholder: "Enter past paper title",
+    subjectPlaceholder: "Enter subject name",
+    subjectCodePlaceholder: "Enter subject code (optional)",
+    selectMonth: "Select month",
+    selectLevel: "Select level",
+    languagePlaceholder: "Enter language",
+    descriptionPlaceholder: "Enter any additional information",
+
+    // Help text
+    subjectCodeDescription: "Optional subject code (e.g. MATH, PHYS)",
+    fileDescription: "Upload PDF file only",
+    acceptedFileTypes: "Accepted file types: PDF, DOC, DOCX",
+    subjectCodeOptional: "Optional code identifier for the subject",
+    monthOptional: "Optional exam session month",
+    descriptionOptional: "Optional additional information",
+
+    // Auth related
+    email: "Email",
+    password: "Password",
+    forgotPassword: "Forgot Password?",
+    resetPassword: "Reset Password",
+    confirmPassword: "Confirm Password",
+    passwordsDontMatch: "Passwords don't match",
+
+    // Dashboard
+    goodMorning: "Good Morning",
+    goodAfternoon: "Good Afternoon",
+    goodEvening: "Good Evening",
+    student: "Student",
+    trackYourProgress: "Track your progress and manage your tasks",
+    addTask: "Add Task",
+    taskProgress: "Task Progress",
+    overallCompletion: "Overall completion rate",
+    tasksCompleted: "tasks completed",
+    viewAllTasks: "View All Tasks",
+    upcomingDeadlines: "Upcoming Deadlines",
+    nextSevenDays: "Due in the next 7 days",
+    daysLeft: "days left",
+    noUpcomingDeadlines: "No upcoming deadlines",
+    viewCalendar: "View Calendar",
+    upcomingTasks: "Upcoming Tasks",
+    tasksToComplete: "Tasks you need to complete",
+
+    // Navigation
+    toggleMenu: "Toggle Menu",
+
+    // Error messages
+    errorFetchingSubjects: "Error fetching subjects",
+    error: "Error",
+  },
+  fr: {
+    // General translations for French
+    // ... (other French translations would go here)
+  },
+}
+
+// Export the French study guides separately as it was in the original code
 export const frenchStudyGuides = {
   // Math AA SL translations
   "math-unit-1": {
@@ -78,8 +197,6 @@ export const frenchStudyGuides = {
       "**Graphiques & Esquisses**\n\n" +
       "**Définition:** Représentation visuelle de y=f(x).\n\n" +
       "**Concepts clés:** intersections, comportement asymptotique, symétrie.\n\n" +
-      "**Question typique:** Esquisser y=x³–3x.\n\n" +
-      "**Conseils:** Tracer  symétrie.\n\n" +
       "**Question typique:** Esquisser y=x³–3x.\n\n" +
       "**Conseils:** Tracer les zéros et les points de retournement; noter le comportement pair/impair.",
     "math-2-4":
@@ -215,7 +332,7 @@ export const frenchStudyGuides = {
       "**Techniques de Différentiation**\n\n" +
       "**Définition:** Règles de puissance, produit, quotient, chaîne.\n\n" +
       "**Formules clés:**\n" +
-      "- (uv)′=u′v+uv′, (u/v)′=(u′v–uv′)/v²\n" +
+      "- (uv)′=u′v+uv′, (u/v)′=(u′v–uv′)/v²\n\n" +
       "- d/dx f(g(x))=f′(g(x))·g′(x)\n\n" +
       "**Question typique:** Différencier x² eˣ.\n\n" +
       "**Conseils:** Étiqueter clairement u et v; vérifier chaque terme.",
@@ -623,7 +740,7 @@ export const frenchStudyGuides = {
       "**Définition:** Investigation géographique indépendante.\n\n" +
       "**Étapes clés:**\n" +
       "1. Formulation de la question\n" +
-      "2. Collecte de données primaires (échantillonnage)\n" +
+      "2. Collecte de données primaires (échantillonnage)\n\n" +
       "3. Analyse (graphiques, statistiques)\n" +
       "4. Évaluation et limitations\n\n" +
       "**Question typique:** Concevoir une étude de microclimat dans votre ville.\n\n" +
@@ -686,3 +803,5 @@ export const frenchStudyGuides = {
   pastPaperNotFound: "Épreuve non trouvée",
   backToSearch: "Retour à la Recherche",
 }
+
+export default translations

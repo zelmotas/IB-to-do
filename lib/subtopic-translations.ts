@@ -136,3 +136,11 @@ export const subtopicTranslations = {
       "Conception de questions de terrain, collecte et analyse de données",
   },
 }
+
+// Import the French study guides from translations
+import { frenchStudyGuides } from "./translations"
+
+// Export them for use in the application
+export { frenchStudyGuides }
+
+// Add any additional translation-related functions or exports here

@@ -35,7 +35,7 @@ export function Sidebar() {
     { href: "/dashboard", icon: Home, label: t("dashboard") },
     { href: "/calendar", icon: Calendar, label: t("calendar") },
     { href: "/subjects", icon: BookOpen, label: t("subjects") },
-    { href: "/past-papers", icon: FileText, label: t("past Papers") },
+    { href: "/past-papers", icon: FileText, label: t("pastPapers") },
     { href: "/chat", icon: MessageSquare, label: t("chat") },
     { href: "/account", icon: User, label: t("account") },
     { href: "/settings", icon: Settings, label: t("settings") },

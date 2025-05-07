@@ -13,7 +13,6 @@ import { useAuth } from "@/contexts/auth-context"
 export function NavMenu() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
-  const [pastPapersOpen, setPastPapersOpen] = useState(pathname?.startsWith("/past-papers") || false)
   const { t } = useLanguage()
   const { user } = useAuth()
 
@@ -109,7 +108,7 @@ export function NavMenu() {
                 )}
               >
                 <FileText className="h-4 w-4" />
-                {t("past Papers")}
+                {t("pastPapers")}
               </Link>
             </nav>
           </div>
@@ -119,7 +118,7 @@ export function NavMenu() {
   )
 }
 
-// Desktop navigation menu component
+// Add the DesktopNavMenu component
 export function DesktopNavMenu() {
   const pathname = usePathname()
   const { t } = useLanguage()
@@ -160,7 +159,7 @@ export function DesktopNavMenu() {
           )}
         >
           <FileText className="h-4 w-4" />
-          {t("past Papers")}
+          {t("pastPapers")}
         </Link>
       </nav>
     </div>
