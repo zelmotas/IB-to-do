@@ -169,6 +169,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
+      // Set login timestamp before redirecting to OAuth
+      SessionStorage.set("login_timestamp", Date.now())
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -191,6 +194,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGithub = async () => {
     try {
+      // Set login timestamp before redirecting to OAuth
+      SessionStorage.set("login_timestamp", Date.now())
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "github",
         options: {

@@ -20,6 +20,7 @@ import { AiChatAssistant } from "@/components/ai-chat-assistant"
 import { SyncService } from "@/lib/sync-service"
 import { cn } from "@/lib/utils"
 import { PastPaperSection } from "@/components/past-papers/past-paper-section"
+import { SessionStorage } from "@/lib/session-storage"
 
 // Import Lucide icons
 import { BookOpen, CalendarIcon, FileText, Home, Moon, RefreshCw, Search, Sun } from "lucide-react"
@@ -69,16 +70,23 @@ export function IbTodoTracker() {
         setIsSyncing(true)
 
         try {
+          // Check if this is a recent login (within the last 5 seconds)
+          const loginTimestamp = SessionStorage.get("login_timestamp")
+          const isRecentLogin = loginTimestamp && Date.now() - loginTimestamp < 5000
+
           // Try to pull data from server first
           const serverData = await SyncService.pullChanges({
             userId: user.id,
             onSuccess: () => {
               SyncService.updateLastSync(user.id)
-              toast({
-                title: t("dataSynced"),
-                description: t("dataSyncedDescription"),
-                duration: 3000,
-              })
+              // Only show toast if this isn't immediately after login
+              if (!isRecentLogin) {
+                toast({
+                  title: t("dataSynced"),
+                  description: t("dataSyncedDescription"),
+                  duration: 3000,
+                })
+              }
             },
           })
 
