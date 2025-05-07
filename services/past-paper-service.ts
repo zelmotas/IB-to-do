@@ -247,15 +247,6 @@ class PastPaperService {
       count: countQuery.count || 0,
     }
   }
-
-  // This method is now removed from the client-side service
-  // Upload past paper (only available for admin via Supabase dashboard)
-  /* 
-  async uploadPastPaper(file: File, metadata: PastPaperMetadata): Promise<PastPaper | null> {
-    // Implementation removed as upload is now admin-only
-    return null
-  }
-  */
 }
 
 export const pastPaperService = new PastPaperService()
