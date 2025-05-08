@@ -1,14 +1,20 @@
-// First, let's update the SyncService to handle notification suppression
-
 import { createClient } from "@/lib/supabase"
 import { SessionStorage } from "@/lib/session-storage"
+import type { Subject } from "@/types/todo"
+
+interface SyncOptions {
+  userId: string
+  data?: Subject[]
+  onSuccess?: () => void
+  onError?: (error: Error) => void
+}
 
 // Define a constant for the minimum time between sync notifications (10 minutes in ms)
 const MIN_NOTIFICATION_INTERVAL = 10 * 60 * 1000
 
-export const SyncService = {
+export class SyncService {
   // Check if there are updates available on the server
-  checkForUpdates: async ({ userId }: { userId: string }): Promise<boolean> => {
+  static async checkForUpdates({ userId }: { userId: string }): Promise<boolean> {
     try {
       const supabase = createClient()
       const { data, error } = await supabase.from("user_data").select("updated_at").eq("user_id", userId).single()
@@ -31,22 +37,21 @@ export const SyncService = {
       console.error("Error in checkForUpdates:", error)
       return false
     }
-  },
+  }
 
   // Pull changes from the server
-  pullChanges: async ({
-    userId,
-    onSuccess,
-  }: {
-    userId: string
-    onSuccess?: () => void
-  }): Promise<any> => {
+  static async pullChanges({ userId, onSuccess, onError }: Omit<SyncOptions, "data">): Promise<Subject[] | null> {
     try {
       const supabase = createClient()
       const { data, error } = await supabase.from("user_data").select("data").eq("user_id", userId).single()
 
       if (error) {
+        if (error.code === "PGRST116") {
+          // No data found, not an error
+          return null
+        }
         console.error("Error pulling changes:", error)
+        if (onError) onError(new Error(error.message))
         return null
       }
 
@@ -54,26 +59,28 @@ export const SyncService = {
         if (onSuccess && shouldShowSyncNotification()) {
           onSuccess()
         }
+
+        // Update last sync time
+        this.updateLastSync(userId)
+
         return data.data
       }
 
       return null
     } catch (error) {
       console.error("Error in pullChanges:", error)
+      if (onError) onError(error as Error)
       return null
     }
-  },
+  }
 
   // Push changes to the server
-  pushChanges: async ({
-    userId,
-    data,
-    onSuccess,
-  }: {
-    userId: string
-    data: any
-    onSuccess?: () => void
-  }): Promise<void> => {
+  static async pushChanges({ userId, data, onSuccess, onError }: SyncOptions): Promise<void> {
+    if (!data) {
+      if (onError) onError(new Error("No data provided"))
+      return
+    }
+
     try {
       const supabase = createClient()
       const { error } = await supabase.from("user_data").upsert(
@@ -87,29 +94,40 @@ export const SyncService = {
 
       if (error) {
         console.error("Error pushing changes:", error)
+        if (onError) onError(new Error(error.message))
         return
       }
 
       if (onSuccess && shouldShowSyncNotification()) {
         onSuccess()
       }
+
+      // Update last sync time
+      this.updateLastSync(userId)
     } catch (error) {
       console.error("Error in pushChanges:", error)
+      if (onError) onError(error as Error)
     }
-  },
+  }
 
   // Update the last sync time
-  updateLastSync: (userId: string): void => {
+  static updateLastSync(userId: string): void {
     const now = Date.now()
     localStorage.setItem(`lastSync_${userId}`, now.toString())
 
     // Also store the last notification time
     SessionStorage.set("last_sync_notification", now)
-  },
+  }
 }
 
 // Helper function to determine if we should show a sync notification
 function shouldShowSyncNotification(): boolean {
+  // Check if notifications are disabled
+  const disableNotifications = SessionStorage.get("disable_sync_notifications")
+  if (disableNotifications) {
+    return false
+  }
+
   // Get the login timestamp
   const loginTimestamp = SessionStorage.get("login_timestamp")
 

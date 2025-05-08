@@ -88,7 +88,7 @@ export function IbTodoTracker() {
     }
   }, [user])
 
-  // Load tasks from localStorage or server if user is logged in
+  // Load tasks from Supabase or localStorage if user is logged in
   useEffect(() => {
     const loadData = async () => {
       if (user) {
@@ -99,8 +99,6 @@ export function IbTodoTracker() {
           const serverData = await SyncService.pullChanges({
             userId: user.id,
             onSuccess: () => {
-              SyncService.updateLastSync(user.id)
-
               // Only show toast if not suppressing notifications
               if (!suppressNotifications) {
                 toast({
@@ -110,10 +108,22 @@ export function IbTodoTracker() {
                 })
               }
             },
+            onError: (error) => {
+              console.error("Error pulling data:", error)
+              // Only show error toast if not suppressing notifications
+              if (!suppressNotifications) {
+                toast({
+                  title: t("syncError"),
+                  description: t("syncErrorDescription"),
+                  variant: "destructive",
+                })
+              }
+            },
           })
 
           if (serverData) {
             setSubjects(serverData)
+            console.log("Loaded data from server:", serverData)
           } else {
             // If no server data, try to load from local storage
             const userKey = `ibSubjects_${user.id}`
@@ -122,12 +132,18 @@ export function IbTodoTracker() {
             if (savedSubjects) {
               const parsedSubjects = JSON.parse(savedSubjects)
               setSubjects(parsedSubjects)
+              console.log("Loaded data from local storage:", parsedSubjects)
 
               // Push to server
               await SyncService.pushChanges({
                 userId: user.id,
                 data: parsedSubjects,
-                onSuccess: () => SyncService.updateLastSync(user.id),
+                onSuccess: () => {
+                  console.log("Initial push to server successful")
+                },
+                onError: (error) => {
+                  console.error("Error pushing initial data:", error)
+                },
               })
             } else {
               // If no user-specific data, try to load from general storage
@@ -135,13 +151,19 @@ export function IbTodoTracker() {
               if (generalSavedSubjects) {
                 const parsedSubjects = JSON.parse(generalSavedSubjects)
                 setSubjects(parsedSubjects)
+                console.log("Loaded data from general storage:", parsedSubjects)
 
                 // Save to user-specific storage and push to server
                 localStorage.setItem(userKey, generalSavedSubjects)
                 await SyncService.pushChanges({
                   userId: user.id,
                   data: parsedSubjects,
-                  onSuccess: () => SyncService.updateLastSync(user.id),
+                  onSuccess: () => {
+                    console.log("Initial push to server successful")
+                  },
+                  onError: (error) => {
+                    console.error("Error pushing initial data:", error)
+                  },
                 })
               }
             }
@@ -185,7 +207,7 @@ export function IbTodoTracker() {
     loadData()
   }, [user, toast, t, suppressNotifications])
 
-  // Save tasks to localStorage and server whenever they change
+  // Save tasks to localStorage and Supabase whenever they change
   useEffect(() => {
     // Save to general storage
     localStorage.setItem("ibSubjects", JSON.stringify(subjects))
@@ -197,23 +219,30 @@ export function IbTodoTracker() {
 
       // Debounce server sync to avoid too many requests
       const syncTimeout = setTimeout(async () => {
-        setIsSyncing(true)
-        try {
-          await SyncService.pushChanges({
-            userId: user.id,
-            data: subjects,
-            onSuccess: () => SyncService.updateLastSync(user.id),
-          })
-        } catch (error) {
-          console.error("Error syncing data:", error)
-        } finally {
-          setIsSyncing(false)
+        if (!isSyncing) {
+          setIsSyncing(true)
+          try {
+            await SyncService.pushChanges({
+              userId: user.id,
+              data: subjects,
+              onSuccess: () => {
+                console.log("Data pushed to server successfully")
+              },
+              onError: (error) => {
+                console.error("Error pushing data:", error)
+              },
+            })
+          } catch (error) {
+            console.error("Error syncing data:", error)
+          } finally {
+            setIsSyncing(false)
+          }
         }
       }, 2000)
 
       return () => clearTimeout(syncTimeout)
     }
-  }, [subjects, user])
+  }, [subjects, user, isSyncing])
 
   // Save view preference whenever it changes
   useEffect(() => {
@@ -358,29 +387,45 @@ export function IbTodoTracker() {
       const serverData = await SyncService.pullChanges({
         userId: user.id,
         onSuccess: () => {
-          SyncService.updateLastSync(user.id)
           toast({
             title: t("dataSynced"),
             description: t("dataSyncedDescription"),
+          })
+        },
+        onError: (error) => {
+          console.error("Error pulling data during manual sync:", error)
+          toast({
+            title: t("syncError"),
+            description: t("syncErrorDescription"),
+            variant: "destructive",
           })
         },
       })
 
       if (serverData) {
         setSubjects(serverData)
+        console.log("Manual sync: Loaded data from server")
       } else {
         // Push current data to server
         await SyncService.pushChanges({
           userId: user.id,
           data: subjects,
           onSuccess: () => {
-            SyncService.updateLastSync(user.id)
             toast({
               title: t("dataSynced"),
               description: t("dataSyncedDescription"),
             })
           },
+          onError: (error) => {
+            console.error("Error pushing data during manual sync:", error)
+            toast({
+              title: t("syncError"),
+              description: t("syncErrorDescription"),
+              variant: "destructive",
+            })
+          },
         })
+        console.log("Manual sync: Pushed data to server")
       }
     } catch (error) {
       console.error("Error syncing with server:", error)
