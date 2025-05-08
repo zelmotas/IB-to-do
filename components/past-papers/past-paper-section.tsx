@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/contexts/language-context"
@@ -12,10 +12,13 @@ import { pastPaperService } from "@/services/past-paper-service"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useToast } from "@/hooks/use-toast"
 import type { PastPaper, PastPaperFilters as PastPaperFiltersType } from "@/types/past-paper"
+import { debugLog } from "@/lib/debug-utils"
 
 export function PastPaperSection() {
   const { t } = useLanguage()
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("browse")
   const [papers, setPapers] = useState<PastPaper[]>([])
   const [subjects, setSubjects] = useState<string[]>([])
@@ -23,15 +26,20 @@ export function PastPaperSection() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [filters, setFilters] = useState<PastPaperFiltersType>({})
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   // Load papers based on filters
-  const loadPapers = async () => {
+  const loadPapers = useCallback(async () => {
     setLoading(true)
     try {
+      debugLog("Loading past papers with filters:", filters, "and search query:", searchQuery)
+
       const fetchedPapers = await pastPaperService.getPastPapers({
         ...filters,
         searchQuery: searchQuery.trim() || undefined,
       })
+
+      debugLog("Fetched papers:", fetchedPapers.length)
       setPapers(fetchedPapers)
 
       // Load subjects and years for filters
@@ -46,16 +54,36 @@ export function PastPaperSection() {
       }
     } catch (error) {
       console.error("Error loading papers:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load past papers. Please try again.",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
-  }
+  }, [filters, searchQuery, subjects.length, years.length, toast])
 
   // Handle filter changes
-  const handleFilterChange = (newFilters: PastPaperFiltersType) => {
+  const handleFilterChange = useCallback((newFilters: PastPaperFiltersType) => {
     setFilters(newFilters)
+  }, [])
+
+  // Refresh data after upload
+  const handleUploadSuccess = useCallback(() => {
+    debugLog("Upload success detected, refreshing data")
+    setRefreshTrigger((prev) => prev + 1)
+    setActiveTab("browse")
+    toast({
+      title: "Success",
+      description: "Past paper uploaded successfully",
+    })
+  }, [toast])
+
+  // Load data when filters change or refresh is triggered
+  useEffect(() => {
     loadPapers()
-  }
+  }, [loadPapers, refreshTrigger])
 
   return (
     <div className="space-y-6">
@@ -280,7 +308,7 @@ export function PastPaperSection() {
         </TabsContent>
 
         <TabsContent value="upload">
-          <UploadPastPaper />
+          <UploadPastPaper onUploadSuccess={handleUploadSuccess} />
         </TabsContent>
       </Tabs>
     </div>

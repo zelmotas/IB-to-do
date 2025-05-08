@@ -63,3 +63,5 @@ export const DebugUtils = {
     }
   },
 }
+
+export const debugLog = DebugUtils.logSync

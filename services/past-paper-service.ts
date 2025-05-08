@@ -1,5 +1,6 @@
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import type { PastPaper } from "@/types/past-paper"
+import { debugLog } from "@/lib/debug-utils"
 
 // Central service for handling past paper data
 class PastPaperService {
@@ -10,13 +11,15 @@ class PastPaperService {
     options: {
       subject?: string
       year?: number
+      month?: string
+      language?: string
       level?: string
-      search?: string
+      searchQuery?: string
       limit?: number
       offset?: number
     } = {},
   ): Promise<PastPaper[]> {
-    const { subject, year, level, search, limit = 10, offset = 0 } = options
+    const { subject, year, month, language, level, searchQuery, limit = 50, offset = 0 } = options
 
     let query = this.supabase
       .from("past_papers")
@@ -33,12 +36,20 @@ class PastPaperService {
       query = query.eq("year", year)
     }
 
+    if (month) {
+      query = query.eq("month", month)
+    }
+
+    if (language) {
+      query = query.eq("language", language)
+    }
+
     if (level) {
       query = query.eq("level", level)
     }
 
-    if (search) {
-      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,subject.ilike.%${search}%`)
+    if (searchQuery) {
+      query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,subject.ilike.%${searchQuery}%`)
     }
 
     const { data, error } = await query
@@ -48,7 +59,8 @@ class PastPaperService {
       throw new Error("Failed to fetch past papers")
     }
 
-    return data as PastPaper[]
+    // Map database column names to camelCase for frontend
+    return (data || []).map(this.mapDatabaseRecordToPastPaper)
   }
 
   // Get a single past paper by ID
@@ -60,7 +72,7 @@ class PastPaperService {
       return null
     }
 
-    return data as PastPaper
+    return this.mapDatabaseRecordToPastPaper(data)
   }
 
   // Get all unique subjects
@@ -77,34 +89,6 @@ class PastPaperService {
     return subjects
   }
 
-  // Get paginated subjects
-  async getSubjectsPaginated({ page = 1, pageSize = 10 }: { page: number; pageSize: number }): Promise<{
-    data: string[]
-    totalPages: number
-  }> {
-    try {
-      // First get all subjects to determine total count
-      const allSubjects = await this.getSubjects()
-
-      // Calculate pagination
-      const totalSubjects = allSubjects.length
-      const totalPages = Math.ceil(totalSubjects / pageSize)
-      const startIndex = (page - 1) * pageSize
-      const endIndex = startIndex + pageSize
-
-      // Get the subjects for the current page
-      const paginatedSubjects = allSubjects.slice(startIndex, endIndex)
-
-      return {
-        data: paginatedSubjects,
-        totalPages,
-      }
-    } catch (error) {
-      console.error("Error fetching paginated subjects:", error)
-      throw new Error("Failed to fetch subjects")
-    }
-  }
-
   // Get all unique years
   async getYears(): Promise<number[]> {
     const { data, error } = await this.supabase.from("past_papers").select("year").order("year", { ascending: false })
@@ -119,132 +103,92 @@ class PastPaperService {
     return years
   }
 
-  // Get paginated years
-  async getYearsPaginated({ page = 1, pageSize = 10 }: { page: number; pageSize: number }): Promise<{
-    data: number[]
-    totalPages: number
-  }> {
+  // Upload a past paper
+  async uploadPastPaper(file: File, metadata: any): Promise<PastPaper | null> {
     try {
-      // First get all years to determine total count
-      const allYears = await this.getYears()
+      // 1. Upload file to storage
+      const fileExt = file.name.split(".").pop()
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`
+      const filePath = `past-papers/${fileName}`
 
-      // Calculate pagination
-      const totalYears = allYears.length
-      const totalPages = Math.ceil(totalYears / pageSize)
-      const startIndex = (page - 1) * pageSize
-      const endIndex = startIndex + pageSize
+      debugLog("Uploading file to storage:", filePath)
 
-      // Get the years for the current page
-      const paginatedYears = allYears.slice(startIndex, endIndex)
+      const { data: storageData, error: storageError } = await this.supabase.storage
+        .from("past-papers")
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        })
 
-      return {
-        data: paginatedYears,
-        totalPages,
+      if (storageError) {
+        console.error("Error uploading file to storage:", storageError)
+        throw new Error("Failed to upload file")
       }
+
+      // 2. Get public URL for the file
+      const { data: publicUrlData } = await this.supabase.storage.from("past-papers").getPublicUrl(filePath)
+
+      const fileUrl = publicUrlData.publicUrl
+
+      debugLog("File uploaded successfully. Public URL:", fileUrl)
+
+      // 3. Create database record
+      const paperData = {
+        title: metadata.title,
+        subject: metadata.subject,
+        subject_code: metadata.subject_code || null,
+        year: metadata.year,
+        month: metadata.month || null,
+        language: metadata.language,
+        paper_number: metadata.paper_number,
+        level: metadata.level,
+        description: metadata.description || null,
+        file_url: fileUrl,
+        uploaded_at: new Date().toISOString(),
+      }
+
+      debugLog("Creating database record with data:", paperData)
+
+      const { data: insertData, error: insertError } = await this.supabase
+        .from("past_papers")
+        .insert(paperData)
+        .select()
+        .single()
+
+      if (insertError) {
+        console.error("Error creating past paper record:", insertError)
+        // Try to clean up the uploaded file
+        await this.supabase.storage.from("past-papers").remove([filePath])
+        throw new Error("Failed to create past paper record")
+      }
+
+      debugLog("Past paper record created successfully:", insertData)
+
+      return this.mapDatabaseRecordToPastPaper(insertData)
     } catch (error) {
-      console.error("Error fetching paginated years:", error)
-      throw new Error("Failed to fetch years")
+      console.error("Error in uploadPastPaper:", error)
+      throw error
     }
   }
 
-  // Get past papers by subject
-  async getPastPapersBySubject(
-    subject: string,
-    options: {
-      limit?: number
-      offset?: number
-    } = {},
-  ): Promise<{ data: PastPaper[]; count: number }> {
-    const { limit = 10, offset = 0 } = options
-
-    // First get the count
-    const countQuery = await this.supabase.from("past_papers").select("id", { count: "exact" }).eq("subject", subject)
-
-    // Then get the paginated data
-    const { data, error } = await this.supabase
-      .from("past_papers")
-      .select("*")
-      .eq("subject", subject)
-      .order("year", { ascending: false })
-      .order("paper_number", { ascending: true })
-      .range(offset, offset + limit - 1)
-
-    if (error) {
-      console.error("Error fetching past papers by subject:", error)
-      throw new Error("Failed to fetch past papers")
-    }
-
+  // Helper method to map database column names to camelCase for frontend
+  private mapDatabaseRecordToPastPaper(record: any): PastPaper {
     return {
-      data: data as PastPaper[],
-      count: countQuery.count || 0,
-    }
-  }
-
-  // Get past papers by year
-  async getPastPapersByYear(
-    year: number,
-    options: {
-      limit?: number
-      offset?: number
-    } = {},
-  ): Promise<{ data: PastPaper[]; count: number }> {
-    const { limit = 10, offset = 0 } = options
-
-    // First get the count
-    const countQuery = await this.supabase.from("past_papers").select("id", { count: "exact" }).eq("year", year)
-
-    // Then get the paginated data
-    const { data, error } = await this.supabase
-      .from("past_papers")
-      .select("*")
-      .eq("year", year)
-      .order("subject", { ascending: true })
-      .order("paper_number", { ascending: true })
-      .range(offset, offset + limit - 1)
-
-    if (error) {
-      console.error("Error fetching past papers by year:", error)
-      throw new Error("Failed to fetch past papers")
-    }
-
-    return {
-      data: data as PastPaper[],
-      count: countQuery.count || 0,
-    }
-  }
-
-  // Search past papers
-  async searchPastPapers(
-    query: string,
-    options: {
-      limit?: number
-      offset?: number
-    } = {},
-  ): Promise<{ data: PastPaper[]; count: number }> {
-    const { limit = 10, offset = 0 } = options
-
-    // First get the count
-    const countQuery = await this.supabase
-      .from("past_papers")
-      .select("id", { count: "exact" })
-      .or(`title.ilike.%${query}%,description.ilike.%${query}%,subject.ilike.%${query}%`)
-
-    // Then get the paginated data
-    const { data, error } = await this.supabase
-      .from("past_papers")
-      .select("*")
-      .or(`title.ilike.%${query}%,description.ilike.%${query}%,subject.ilike.%${query}%`)
-      .order("uploaded_at", { ascending: false })
-      .range(offset, offset + limit - 1)
-
-    if (error) {
-      console.error("Error searching past papers:", error)
-      throw new Error("Failed to search past papers")
-    }
-
-    return {
-      data: data as PastPaper[],
-      count: countQuery.count || 0,
+      id: record.id,
+      title: record.title,
+      subject: record.subject,
+      subjectCode: record.subject_code,
+      year: record.year,
+      month: record.month,
+      language: record.language,
+      paperNumber: record.paper_number,
+      level: record.level,
+      description: record.description,
+      fileUrl: record.file_url,
+      thumbnailUrl: record.thumbnail_url,
+      tags: record.tags,
+      uploadedBy: record.uploaded_by,
+      uploadedAt: record.uploaded_at,
     }
   }
 }

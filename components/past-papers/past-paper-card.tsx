@@ -45,7 +45,7 @@ export function PastPaperCard({ paper }: PastPaperCardProps) {
         {paper.description && <p className="text-sm text-muted-foreground line-clamp-3 mb-2">{paper.description}</p>}
         <div className="flex flex-wrap gap-2 mt-2">
           <Badge variant="outline">
-            {t("paper")} {paper.paper_number}
+            {t("paper")} {paper.paperNumber}
           </Badge>
           <Badge variant="outline">{paper.language}</Badge>
           {paper.tags?.map((tag) => (
@@ -63,7 +63,7 @@ export function PastPaperCard({ paper }: PastPaperCardProps) {
           </Link>
         </Button>
         <Button variant="default" size="sm" asChild>
-          <a href={paper.file_url} target="_blank" rel="noopener noreferrer" download>
+          <a href={paper.fileUrl} target="_blank" rel="noopener noreferrer" download>
             <Download className="mr-2 h-4 w-4" />
             {t("download")}
           </a>

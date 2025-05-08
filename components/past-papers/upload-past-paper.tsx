@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Upload, FileText, Check, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { debugLog } from "@/lib/debug-utils"
 
 const formSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters" }),
@@ -32,7 +33,11 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-export function UploadPastPaper() {
+interface UploadPastPaperProps {
+  onUploadSuccess?: () => void
+}
+
+export function UploadPastPaper({ onUploadSuccess }: UploadPastPaperProps) {
   const { t } = useLanguage()
   const router = useRouter()
   const { toast } = useToast()
@@ -61,17 +66,25 @@ export function UploadPastPaper() {
     setUploadSuccess(false)
 
     try {
+      debugLog("Starting past paper upload with values:", { ...values, file: values.file.name })
+
       const { file, ...metadata } = values
 
       const result = await pastPaperService.uploadPastPaper(file, metadata)
 
       if (result) {
+        debugLog("Upload successful, result:", result)
         setUploadSuccess(true)
         toast({
           title: "Upload successful",
           description: "Your past paper has been uploaded successfully.",
         })
         form.reset()
+
+        // Notify parent component
+        if (onUploadSuccess) {
+          onUploadSuccess()
+        }
       } else {
         throw new Error("Upload failed")
       }
@@ -186,7 +199,7 @@ export function UploadPastPaper() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         <SelectItem value="May">May</SelectItem>
                         <SelectItem value="November">November</SelectItem>
                       </SelectContent>
