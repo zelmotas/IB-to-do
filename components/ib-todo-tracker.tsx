@@ -93,6 +93,7 @@ export function IbTodoTracker() {
     const loadData = async () => {
       if (user) {
         setIsSyncing(true)
+        console.log("Loading data for user:", user.id)
 
         try {
           // Try to pull data from server first
@@ -122,17 +123,18 @@ export function IbTodoTracker() {
           })
 
           if (serverData) {
+            console.log("Setting subjects from server data")
             setSubjects(serverData)
-            console.log("Loaded data from server:", serverData)
           } else {
+            console.log("No server data found, checking local storage")
             // If no server data, try to load from local storage
             const userKey = `ibSubjects_${user.id}`
             const savedSubjects = localStorage.getItem(userKey)
 
             if (savedSubjects) {
+              console.log("Found subjects in user-specific local storage")
               const parsedSubjects = JSON.parse(savedSubjects)
               setSubjects(parsedSubjects)
-              console.log("Loaded data from local storage:", parsedSubjects)
 
               // Push to server
               await SyncService.pushChanges({
@@ -146,12 +148,13 @@ export function IbTodoTracker() {
                 },
               })
             } else {
+              console.log("No user-specific data, checking general storage")
               // If no user-specific data, try to load from general storage
               const generalSavedSubjects = localStorage.getItem("ibSubjects")
               if (generalSavedSubjects) {
+                console.log("Found subjects in general storage")
                 const parsedSubjects = JSON.parse(generalSavedSubjects)
                 setSubjects(parsedSubjects)
-                console.log("Loaded data from general storage:", parsedSubjects)
 
                 // Save to user-specific storage and push to server
                 localStorage.setItem(userKey, generalSavedSubjects)
@@ -165,84 +168,52 @@ export function IbTodoTracker() {
                     console.error("Error pushing initial data:", error)
                   },
                 })
+              } else {
+                console.log("No saved data found, using default subjects")
               }
             }
           }
-
-          // Load view preference
-          const savedView = localStorage.getItem(`homeView_${user.id}`)
-          if (savedView) {
-            setHomeView(savedView as "calendar" | "list")
-          }
-        } catch (error) {
-          console.error("Error loading data:", error)
-
-          // Only show error toast if not suppressing notifications
-          if (!suppressNotifications) {
-            toast({
-              title: t("syncError"),
-              description: t("syncErrorDescription"),
-              variant: "destructive",
-            })
-          }
-        } finally {
-          setIsSyncing(false)
-          setHasUpdates(false)
-        }
-      } else {
-        // If no user, load from general storage
-        const savedSubjects = localStorage.getItem("ibSubjects")
-        if (savedSubjects) {
-          setSubjects(JSON.parse(savedSubjects))
         }
 
-        // Load general view preference
-        const savedView = localStorage.getItem("homeView")
+        // Load view preference\
+        const savedView = localStorage.getItem(`homeView_${user.id}`)
         if (savedView) {
           setHomeView(savedView as "calendar" | "list")
         }
       }
+      catch (error)
+      console.error("Error loading data:", error)
+
+      // Only show error toast if not suppressing notifications
+      if (!suppressNotifications) {
+        toast({
+          title: t("syncError"),
+          description: t("syncErrorDescription"),
+          variant: "destructive",
+        })
+      }
+      finally
+      setIsSyncing(false)
+      setHasUpdates(false)
     }
 
     loadData()
   }, [user, toast, t, suppressNotifications])
 
-  // Save tasks to localStorage and Supabase whenever they change
+  // Save tasks to localStorage whenever they change
   useEffect(() => {
     // Save to general storage
     localStorage.setItem("ibSubjects", JSON.stringify(subjects))
 
-    // If user is logged in, save to user-specific storage and sync to server
+    // If user is logged in, save to user-specific storage
     if (user) {
       const userKey = `ibSubjects_${user.id}`
       localStorage.setItem(userKey, JSON.stringify(subjects))
 
-      // Debounce server sync to avoid too many requests
-      const syncTimeout = setTimeout(async () => {
-        if (!isSyncing) {
-          setIsSyncing(true)
-          try {
-            await SyncService.pushChanges({
-              userId: user.id,
-              data: subjects,
-              onSuccess: () => {
-                console.log("Data pushed to server successfully")
-              },
-              onError: (error) => {
-                console.error("Error pushing data:", error)
-              },
-            })
-          } catch (error) {
-            console.error("Error syncing data:", error)
-          } finally {
-            setIsSyncing(false)
-          }
-        }
-      }, 2000)
-
-      return () => clearTimeout(syncTimeout)
+      // Note: We're not syncing to server here anymore since we're doing immediate syncs
+      // for critical operations (add, toggle, delete) and manual syncs for the rest
     }
-  }, [subjects, user, isSyncing])
+  }, [subjects, user])
 
   // Save view preference whenever it changes
   useEffect(() => {
@@ -315,13 +286,30 @@ export function IbTodoTracker() {
         }
         return subject
       })
+
+      // Immediately sync the new subjects to the server if user is logged in
+      if (user) {
+        SyncService.immediateSync({
+          userId: user.id,
+          data: newSubjects,
+          onError: (error) => {
+            console.error("Error syncing after adding task:", error)
+            toast({
+              title: t("syncError"),
+              description: t("taskSyncErrorDescription"),
+              variant: "destructive",
+            })
+          },
+        })
+      }
+
       return newSubjects
     })
   }
 
   const toggleTaskCompletion = (subjectId: string, unitId: string, subtopicId: string, taskId: string) => {
     setSubjects((prevSubjects) => {
-      return prevSubjects.map((subject) => {
+      const updatedSubjects = prevSubjects.map((subject) => {
         if (subject.id === subjectId) {
           const updatedUnits = subject.units.map((unit) => {
             if (unit.id === unitId) {
@@ -345,6 +333,19 @@ export function IbTodoTracker() {
         }
         return subject
       })
+
+      // Immediately sync the updated subjects to the server if user is logged in
+      if (user) {
+        SyncService.immediateSync({
+          userId: user.id,
+          data: updatedSubjects,
+          onError: (error) => {
+            console.error("Error syncing after toggling task:", error)
+          },
+        })
+      }
+
+      return updatedSubjects
     })
   }
 
@@ -353,7 +354,7 @@ export function IbTodoTracker() {
     NotificationService.removeNotification(taskId)
 
     setSubjects((prevSubjects) => {
-      return prevSubjects.map((subject) => {
+      const updatedSubjects = prevSubjects.map((subject) => {
         if (subject.id === subjectId) {
           const updatedUnits = subject.units.map((unit) => {
             if (unit.id === unitId) {
@@ -374,6 +375,24 @@ export function IbTodoTracker() {
         }
         return subject
       })
+
+      // Immediately sync the updated subjects to the server if user is logged in
+      if (user) {
+        SyncService.immediateSync({
+          userId: user.id,
+          data: updatedSubjects,
+          onError: (error) => {
+            console.error("Error syncing after deleting task:", error)
+            toast({
+              title: t("syncError"),
+              description: t("taskDeleteSyncErrorDescription"),
+              variant: "destructive",
+            })
+          },
+        })
+      }
+
+      return updatedSubjects
     })
   }
 

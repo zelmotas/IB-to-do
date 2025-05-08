@@ -42,12 +42,14 @@ export class SyncService {
   // Pull changes from the server
   static async pullChanges({ userId, onSuccess, onError }: Omit<SyncOptions, "data">): Promise<Subject[] | null> {
     try {
+      console.log("Pulling changes for user:", userId)
       const supabase = createClient()
       const { data, error } = await supabase.from("user_data").select("data").eq("user_id", userId).single()
 
       if (error) {
         if (error.code === "PGRST116") {
           // No data found, not an error
+          console.log("No data found for user:", userId)
           return null
         }
         console.error("Error pulling changes:", error)
@@ -56,6 +58,7 @@ export class SyncService {
       }
 
       if (data && data.data) {
+        console.log("Successfully pulled data:", data.data)
         if (onSuccess && shouldShowSyncNotification()) {
           onSuccess()
         }
@@ -82,22 +85,55 @@ export class SyncService {
     }
 
     try {
+      console.log("Pushing changes for user:", userId)
       const supabase = createClient()
-      const { error } = await supabase.from("user_data").upsert(
-        {
-          user_id: userId,
-          data,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      )
 
-      if (error) {
-        console.error("Error pushing changes:", error)
-        if (onError) onError(new Error(error.message))
+      // First, check if the record exists
+      const { data: existingData, error: checkError } = await supabase
+        .from("user_data")
+        .select("id")
+        .eq("user_id", userId)
+        .single()
+
+      let upsertError
+
+      if (checkError && checkError.code !== "PGRST116") {
+        console.error("Error checking existing data:", checkError)
+        if (onError) onError(new Error(checkError.message))
         return
       }
 
+      // If record exists, update it
+      if (existingData) {
+        console.log("Updating existing record for user:", userId)
+        const { error } = await supabase
+          .from("user_data")
+          .update({
+            data,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", userId)
+
+        upsertError = error
+      } else {
+        // If record doesn't exist, insert it
+        console.log("Creating new record for user:", userId)
+        const { error } = await supabase.from("user_data").insert({
+          user_id: userId,
+          data,
+          updated_at: new Date().toISOString(),
+        })
+
+        upsertError = error
+      }
+
+      if (upsertError) {
+        console.error("Error pushing changes:", upsertError)
+        if (onError) onError(new Error(upsertError.message))
+        return
+      }
+
+      console.log("Successfully pushed data for user:", userId)
       if (onSuccess && shouldShowSyncNotification()) {
         onSuccess()
       }
@@ -106,6 +142,23 @@ export class SyncService {
       this.updateLastSync(userId)
     } catch (error) {
       console.error("Error in pushChanges:", error)
+      if (onError) onError(error as Error)
+    }
+  }
+
+  // Immediately sync data to the server (for critical operations like adding/deleting tasks)
+  static async immediateSync({ userId, data, onSuccess, onError }: SyncOptions): Promise<void> {
+    if (!data || !userId) {
+      console.error("Missing data or userId for immediate sync")
+      if (onError) onError(new Error("Missing data or userId"))
+      return
+    }
+
+    try {
+      console.log("Immediate sync for user:", userId)
+      await this.pushChanges({ userId, data, onSuccess, onError })
+    } catch (error) {
+      console.error("Error in immediateSync:", error)
       if (onError) onError(error as Error)
     }
   }

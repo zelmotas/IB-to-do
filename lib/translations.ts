@@ -102,6 +102,8 @@ const translations = {
     viewCalendar: "View Calendar",
     upcomingTasks: "Upcoming Tasks",
     tasksToComplete: "Tasks you need to complete",
+    taskSyncErrorDescription: "There was an error saving your task. Please try again.",
+    taskDeleteSyncErrorDescription: "There was an error deleting your task. Please try again.",
 
     // Navigation
     toggleMenu: "Toggle Menu",
