@@ -2,13 +2,6 @@ import { createClient } from "@/lib/supabase"
 import { SessionStorage } from "@/lib/session-storage"
 import type { Subject } from "@/types/todo"
 
-interface SyncOptions {
-  userId: string
-  data?: Subject[]
-  onSuccess?: () => void
-  onError?: (error: Error) => void
-}
-
 // Define a constant for the minimum time between sync notifications (10 minutes in ms)
 const MIN_NOTIFICATION_INTERVAL = 10 * 60 * 1000
 
@@ -40,7 +33,15 @@ export class SyncService {
   }
 
   // Pull changes from the server
-  static async pullChanges({ userId, onSuccess, onError }: Omit<SyncOptions, "data">): Promise<Subject[] | null> {
+  static async pullChanges({
+    userId,
+    onSuccess,
+    onError,
+  }: {
+    userId: string
+    onSuccess?: () => void
+    onError?: (error: Error) => void
+  }): Promise<Subject[] | null> {
     try {
       console.log("Pulling changes for user:", userId)
       const supabase = createClient()
@@ -72,13 +73,23 @@ export class SyncService {
       return null
     } catch (error) {
       console.error("Error in pullChanges:", error)
-      if (onError) onError(error as Error)
+      if (onError) onError(error instanceof Error ? error : new Error(String(error)))
       return null
     }
   }
 
   // Push changes to the server
-  static async pushChanges({ userId, data, onSuccess, onError }: SyncOptions): Promise<void> {
+  static async pushChanges({
+    userId,
+    data,
+    onSuccess,
+    onError,
+  }: {
+    userId: string
+    data: Subject[]
+    onSuccess?: () => void
+    onError?: (error: Error) => void
+  }): Promise<void> {
     if (!data) {
       if (onError) onError(new Error("No data provided"))
       return
@@ -94,8 +105,6 @@ export class SyncService {
         .select("id")
         .eq("user_id", userId)
         .single()
-
-      let upsertError
 
       if (checkError && checkError.code !== "PGRST116") {
         console.error("Error checking existing data:", checkError)
@@ -114,7 +123,11 @@ export class SyncService {
           })
           .eq("user_id", userId)
 
-        upsertError = error
+        if (error) {
+          console.error("Error updating data:", error)
+          if (onError) onError(new Error(error.message))
+          return
+        }
       } else {
         // If record doesn't exist, insert it
         console.log("Creating new record for user:", userId)
@@ -124,13 +137,11 @@ export class SyncService {
           updated_at: new Date().toISOString(),
         })
 
-        upsertError = error
-      }
-
-      if (upsertError) {
-        console.error("Error pushing changes:", upsertError)
-        if (onError) onError(new Error(upsertError.message))
-        return
+        if (error) {
+          console.error("Error inserting data:", error)
+          if (onError) onError(new Error(error.message))
+          return
+        }
       }
 
       console.log("Successfully pushed data for user:", userId)
@@ -142,12 +153,22 @@ export class SyncService {
       this.updateLastSync(userId)
     } catch (error) {
       console.error("Error in pushChanges:", error)
-      if (onError) onError(error as Error)
+      if (onError) onError(error instanceof Error ? error : new Error(String(error)))
     }
   }
 
   // Immediately sync data to the server (for critical operations like adding/deleting tasks)
-  static async immediateSync({ userId, data, onSuccess, onError }: SyncOptions): Promise<void> {
+  static async immediateSync({
+    userId,
+    data,
+    onSuccess,
+    onError,
+  }: {
+    userId: string
+    data: Subject[]
+    onSuccess?: () => void
+    onError?: (error: Error) => void
+  }): Promise<void> {
     if (!data || !userId) {
       console.error("Missing data or userId for immediate sync")
       if (onError) onError(new Error("Missing data or userId"))
@@ -159,7 +180,7 @@ export class SyncService {
       await this.pushChanges({ userId, data, onSuccess, onError })
     } catch (error) {
       console.error("Error in immediateSync:", error)
-      if (onError) onError(error as Error)
+      if (onError) onError(error instanceof Error ? error : new Error(String(error)))
     }
   }
 

@@ -173,28 +173,40 @@ export function IbTodoTracker() {
               }
             }
           }
+
+          // Load view preference
+          const savedView = localStorage.getItem(`homeView_${user.id}`)
+          if (savedView) {
+            setHomeView(savedView as "calendar" | "list")
+          }
+        } catch (error) {
+          console.error("Error loading data:", error)
+
+          // Only show error toast if not suppressing notifications
+          if (!suppressNotifications) {
+            toast({
+              title: t("syncError"),
+              description: t("syncErrorDescription"),
+              variant: "destructive",
+            })
+          }
+        } finally {
+          setIsSyncing(false)
+          setHasUpdates(false)
+        }
+      } else {
+        // If no user, load from general storage
+        const savedSubjects = localStorage.getItem("ibSubjects")
+        if (savedSubjects) {
+          setSubjects(JSON.parse(savedSubjects))
         }
 
-        // Load view preference\
-        const savedView = localStorage.getItem(`homeView_${user.id}`)
+        // Load general view preference
+        const savedView = localStorage.getItem("homeView")
         if (savedView) {
           setHomeView(savedView as "calendar" | "list")
         }
       }
-      catch (error)
-      console.error("Error loading data:", error)
-
-      // Only show error toast if not suppressing notifications
-      if (!suppressNotifications) {
-        toast({
-          title: t("syncError"),
-          description: t("syncErrorDescription"),
-          variant: "destructive",
-        })
-      }
-      finally
-      setIsSyncing(false)
-      setHasUpdates(false)
     }
 
     loadData()
