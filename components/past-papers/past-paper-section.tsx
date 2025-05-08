@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/contexts/language-context"
-import { FileText, Upload, Search, BookOpen, Calendar } from "lucide-react"
-import { UploadPastPaper } from "@/components/past-papers/upload-past-paper"
+import { FileText, Search, BookOpen, Calendar } from "lucide-react"
 import { PastPaperFilters } from "@/components/past-papers/past-paper-filters"
 import { PastPaperCard } from "@/components/past-papers/past-paper-card"
 import { pastPaperService } from "@/services/past-paper-service"
@@ -69,16 +68,11 @@ export function PastPaperSection() {
     setFilters(newFilters)
   }, [])
 
-  // Refresh data after upload
-  const handleUploadSuccess = useCallback(() => {
-    debugLog("Upload success detected, refreshing data")
+  // Force refresh data
+  const refreshData = useCallback(() => {
+    debugLog("Manual refresh triggered")
     setRefreshTrigger((prev) => prev + 1)
-    setActiveTab("browse")
-    toast({
-      title: "Success",
-      description: "Past paper uploaded successfully",
-    })
-  }, [toast])
+  }, [])
 
   // Load data when filters change or refresh is triggered
   useEffect(() => {
@@ -89,9 +83,9 @@ export function PastPaperSection() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">{t("pastPapers")}</h1>
-        <Button onClick={() => setActiveTab("upload")}>
-          <Upload className="mr-2 h-4 w-4" />
-          {t("uploadPastPaper")}
+        <Button onClick={refreshData} variant="outline">
+          <FileText className="mr-2 h-4 w-4" />
+          {t("refresh")}
         </Button>
       </div>
 
@@ -112,10 +106,6 @@ export function PastPaperSection() {
           <TabsTrigger value="years" className="flex items-center">
             <Calendar className="mr-2 h-4 w-4" />
             {t("byYear")}
-          </TabsTrigger>
-          <TabsTrigger value="upload" className="flex items-center">
-            <Upload className="mr-2 h-4 w-4" />
-            {t("upload")}
           </TabsTrigger>
         </TabsList>
 
@@ -153,10 +143,6 @@ export function PastPaperSection() {
                     <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <h2 className="text-xl font-semibold mb-2">{t("noPastPapersFound")}</h2>
                     <p className="text-muted-foreground mb-6">{t("noPastPapersDescription")}</p>
-                    <Button onClick={() => setActiveTab("upload")}>
-                      <Upload className="mr-2 h-4 w-4" />
-                      {t("uploadPastPaper")}
-                    </Button>
                   </div>
                 )}
               </div>
@@ -252,11 +238,7 @@ export function PastPaperSection() {
               <div className="col-span-3 text-center py-12">
                 <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h2 className="text-xl font-semibold mb-2">{t("noSubjectsFound")}</h2>
-                <p className="text-muted-foreground mb-6">{t("uploadPastPapersToSeeSubjects")}</p>
-                <Button onClick={() => setActiveTab("upload")}>
-                  <Upload className="mr-2 h-4 w-4" />
-                  {t("uploadPastPaper")}
-                </Button>
+                <p className="text-muted-foreground mb-6">{t("noSubjectsFoundDescription")}</p>
               </div>
             )}
           </div>
@@ -297,18 +279,10 @@ export function PastPaperSection() {
               <div className="col-span-6 text-center py-12">
                 <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h2 className="text-xl font-semibold mb-2">{t("noYearsFound")}</h2>
-                <p className="text-muted-foreground mb-6">{t("uploadPastPapersToSeeYears")}</p>
-                <Button onClick={() => setActiveTab("upload")}>
-                  <Upload className="mr-2 h-4 w-4" />
-                  {t("uploadPastPaper")}
-                </Button>
+                <p className="text-muted-foreground mb-6">{t("noYearsFoundDescription")}</p>
               </div>
             )}
           </div>
-        </TabsContent>
-
-        <TabsContent value="upload">
-          <UploadPastPaper onUploadSuccess={handleUploadSuccess} />
         </TabsContent>
       </Tabs>
     </div>
