@@ -50,6 +50,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               name: supabaseUser.user_metadata?.name,
               avatar_url: supabaseUser.user_metadata?.avatar_url,
             })
+
+            // Check if this is a new login session
+            const lastLoginId = SessionStorage.get("last_login_id")
+            if (!lastLoginId || lastLoginId !== session.access_token) {
+              // This is a new login
+              SessionStorage.set("login_timestamp", Date.now())
+              SessionStorage.set("last_login_id", session.access_token)
+
+              // Set a flag to completely disable sync notifications for 30 seconds
+              SessionStorage.set("disable_sync_notifications", true)
+
+              // Clear the flag after 30 seconds
+              setTimeout(() => {
+                SessionStorage.remove("disable_sync_notifications")
+              }, 30000)
+            }
           }
         }
       } catch (error) {
@@ -72,6 +88,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: session.user.user_metadata?.name,
           avatar_url: session.user.user_metadata?.avatar_url,
         })
+
+        // If this is a sign-in event, mark it as a new login
+        if (event === "SIGNED_IN") {
+          SessionStorage.set("login_timestamp", Date.now())
+          SessionStorage.set("last_login_id", session.access_token)
+
+          // Set a flag to completely disable sync notifications for 30 seconds
+          SessionStorage.set("disable_sync_notifications", true)
+
+          // Clear the flag after 30 seconds
+          setTimeout(() => {
+            SessionStorage.remove("disable_sync_notifications")
+          }, 30000)
+        }
       } else {
         setUser(null)
       }
@@ -96,6 +126,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Track login in session storage to prevent duplicate notifications
       SessionStorage.set("login_timestamp", Date.now())
+
+      // Set a flag to completely disable sync notifications for 30 seconds
+      SessionStorage.set("disable_sync_notifications", true)
+
+      // Store the session ID to track new logins
+      if (data.session) {
+        SessionStorage.set("last_login_id", data.session.access_token)
+      }
 
       toast({
         title: "Sign in successful",
@@ -156,6 +194,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error
       }
 
+      // Clear login tracking
+      SessionStorage.remove("login_timestamp")
+      SessionStorage.remove("last_login_id")
+      SessionStorage.remove("disable_sync_notifications")
+
       toast({
         title: "Signed out successfully",
         description: "See you soon!",
@@ -171,6 +214,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // Set login timestamp before redirecting to OAuth
       SessionStorage.set("login_timestamp", Date.now())
+
+      // Set a flag to completely disable sync notifications after redirect
+      SessionStorage.set("pending_oauth_login", true)
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -196,6 +242,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // Set login timestamp before redirecting to OAuth
       SessionStorage.set("login_timestamp", Date.now())
+
+      // Set a flag to completely disable sync notifications after redirect
+      SessionStorage.set("pending_oauth_login", true)
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "github",

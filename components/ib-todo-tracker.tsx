@@ -40,10 +40,35 @@ export function IbTodoTracker() {
   const { t } = useLanguage()
   const { user } = useAuth()
   const { toast } = useToast()
+  const [suppressNotifications, setSuppressNotifications] = useState(false)
 
   // Set mounted to true once component is mounted
   useEffect(() => {
     setMounted(true)
+
+    // Check for recent login cookie
+    const checkRecentLogin = () => {
+      const cookies = document.cookie.split(";")
+      const recentLoginCookie = cookies.find((cookie) => cookie.trim().startsWith("recent_login="))
+
+      if (recentLoginCookie) {
+        // If recent login cookie exists, suppress notifications and set timestamp
+        setSuppressNotifications(true)
+        SessionStorage.set("login_timestamp", Date.now())
+
+        // Remove the cookie after checking
+        document.cookie = "recent_login=; max-age=0; path=/;"
+      }
+    }
+
+    checkRecentLogin()
+
+    // Set a timer to stop suppressing notifications after 30 seconds
+    const timer = setTimeout(() => {
+      setSuppressNotifications(false)
+    }, 30000)
+
+    return () => clearTimeout(timer)
   }, [])
 
   // Check for updates from the server
@@ -70,17 +95,14 @@ export function IbTodoTracker() {
         setIsSyncing(true)
 
         try {
-          // Check if this is a recent login (within the last 5 seconds)
-          const loginTimestamp = SessionStorage.get("login_timestamp")
-          const isRecentLogin = loginTimestamp && Date.now() - loginTimestamp < 5000
-
           // Try to pull data from server first
           const serverData = await SyncService.pullChanges({
             userId: user.id,
             onSuccess: () => {
               SyncService.updateLastSync(user.id)
-              // Only show toast if this isn't immediately after login
-              if (!isRecentLogin) {
+
+              // Only show toast if not suppressing notifications
+              if (!suppressNotifications) {
                 toast({
                   title: t("dataSynced"),
                   description: t("dataSyncedDescription"),
@@ -132,11 +154,15 @@ export function IbTodoTracker() {
           }
         } catch (error) {
           console.error("Error loading data:", error)
-          toast({
-            title: t("syncError"),
-            description: t("syncErrorDescription"),
-            variant: "destructive",
-          })
+
+          // Only show error toast if not suppressing notifications
+          if (!suppressNotifications) {
+            toast({
+              title: t("syncError"),
+              description: t("syncErrorDescription"),
+              variant: "destructive",
+            })
+          }
         } finally {
           setIsSyncing(false)
           setHasUpdates(false)
@@ -157,7 +183,7 @@ export function IbTodoTracker() {
     }
 
     loadData()
-  }, [user, toast, t])
+  }, [user, toast, t, suppressNotifications])
 
   // Save tasks to localStorage and server whenever they change
   useEffect(() => {

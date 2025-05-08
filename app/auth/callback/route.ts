@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase"
 import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -8,18 +9,16 @@ export async function GET(request: Request) {
   if (code) {
     const supabase = createClient()
     await supabase.auth.exchangeCodeForSession(code)
-  }
 
-  // After successful authentication and before redirect
-  // Add this line before the redirect
-  if (typeof window !== "undefined") {
-    // This will run on the client side after hydration
-    const SessionStorage = {
-      set: (key: string, value: any) => {
-        sessionStorage.setItem(key, JSON.stringify(value))
-      },
-    }
-    SessionStorage.set("login_timestamp", Date.now())
+    // Set a cookie to indicate recent login
+    // This will be checked on the client side
+    cookies().set("recent_login", "true", {
+      maxAge: 30, // 30 seconds
+      path: "/",
+      httpOnly: false, // Allow JavaScript access
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    })
   }
 
   // URL to redirect to after sign in process completes

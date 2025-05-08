@@ -1,92 +1,131 @@
-import type { Subject } from "@/types/todo"
+// First, let's update the SyncService to handle notification suppression
 
-interface SyncOptions {
-  userId: string
-  data: Subject[]
-  onSuccess?: () => void
-  onError?: (error: Error) => void
-}
+import { createClient } from "@/lib/supabase"
+import { SessionStorage } from "@/lib/session-storage"
 
-export class SyncService {
-  // Simulate a server-side storage with localStorage
-  // In a real implementation, this would be a database or cloud storage
-  private static getServerKey(userId: string): string {
-    return `server_data_${userId}`
-  }
+// Define a constant for the minimum time between sync notifications (10 minutes in ms)
+const MIN_NOTIFICATION_INTERVAL = 10 * 60 * 1000
 
-  // Push local changes to the server
-  static async pushChanges({ userId, data, onSuccess, onError }: SyncOptions): Promise<void> {
+export const SyncService = {
+  // Check if there are updates available on the server
+  checkForUpdates: async ({ userId }: { userId: string }): Promise<boolean> => {
     try {
-      // Simulate network delay
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      const supabase = createClient()
+      const { data, error } = await supabase.from("user_data").select("updated_at").eq("user_id", userId).single()
 
-      // Store data in "server" (localStorage with a different key)
-      const serverKey = this.getServerKey(userId)
-      localStorage.setItem(
-        serverKey,
-        JSON.stringify({
-          data,
-          lastUpdated: new Date().toISOString(),
-        }),
-      )
+      if (error) {
+        console.error("Error checking for updates:", error)
+        return false
+      }
 
-      if (onSuccess) onSuccess()
+      if (!data) return false
+
+      const lastSyncTime = localStorage.getItem(`lastSync_${userId}`)
+      if (!lastSyncTime) return true
+
+      const serverUpdateTime = new Date(data.updated_at).getTime()
+      const lastSyncTimeMs = Number.parseInt(lastSyncTime, 10)
+
+      return serverUpdateTime > lastSyncTimeMs
     } catch (error) {
-      console.error("Error pushing changes:", error)
-      if (onError) onError(error as Error)
-    }
-  }
-
-  // Pull latest data from the server
-  static async pullChanges({ userId, onSuccess, onError }: Omit<SyncOptions, "data">): Promise<Subject[] | null> {
-    try {
-      // Simulate network delay
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      // Get data from "server"
-      const serverKey = this.getServerKey(userId)
-      const serverData = localStorage.getItem(serverKey)
-
-      if (!serverData) return null
-
-      const parsedData = JSON.parse(serverData)
-
-      if (onSuccess) onSuccess()
-
-      return parsedData.data
-    } catch (error) {
-      console.error("Error pulling changes:", error)
-      if (onError) onError(error as Error)
-      return null
-    }
-  }
-
-  // Check if there are newer changes on the server
-  static async checkForUpdates({ userId }: { userId: string }): Promise<boolean> {
-    try {
-      // Get local last sync time
-      const localLastSync = localStorage.getItem(`last_sync_${userId}`)
-
-      // Get server data
-      const serverKey = this.getServerKey(userId)
-      const serverData = localStorage.getItem(serverKey)
-
-      if (!serverData || !localLastSync) return false
-
-      const parsedServerData = JSON.parse(serverData)
-      const serverLastUpdated = new Date(parsedServerData.lastUpdated)
-      const localLastSyncDate = new Date(localLastSync)
-
-      // Return true if server has newer data
-      return serverLastUpdated > localLastSyncDate
-    } catch (error) {
-      console.error("Error checking for updates:", error)
+      console.error("Error in checkForUpdates:", error)
       return false
     }
+  },
+
+  // Pull changes from the server
+  pullChanges: async ({
+    userId,
+    onSuccess,
+  }: {
+    userId: string
+    onSuccess?: () => void
+  }): Promise<any> => {
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase.from("user_data").select("data").eq("user_id", userId).single()
+
+      if (error) {
+        console.error("Error pulling changes:", error)
+        return null
+      }
+
+      if (data && data.data) {
+        if (onSuccess && shouldShowSyncNotification()) {
+          onSuccess()
+        }
+        return data.data
+      }
+
+      return null
+    } catch (error) {
+      console.error("Error in pullChanges:", error)
+      return null
+    }
+  },
+
+  // Push changes to the server
+  pushChanges: async ({
+    userId,
+    data,
+    onSuccess,
+  }: {
+    userId: string
+    data: any
+    onSuccess?: () => void
+  }): Promise<void> => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from("user_data").upsert(
+        {
+          user_id: userId,
+          data,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      )
+
+      if (error) {
+        console.error("Error pushing changes:", error)
+        return
+      }
+
+      if (onSuccess && shouldShowSyncNotification()) {
+        onSuccess()
+      }
+    } catch (error) {
+      console.error("Error in pushChanges:", error)
+    }
+  },
+
+  // Update the last sync time
+  updateLastSync: (userId: string): void => {
+    const now = Date.now()
+    localStorage.setItem(`lastSync_${userId}`, now.toString())
+
+    // Also store the last notification time
+    SessionStorage.set("last_sync_notification", now)
+  },
+}
+
+// Helper function to determine if we should show a sync notification
+function shouldShowSyncNotification(): boolean {
+  // Get the login timestamp
+  const loginTimestamp = SessionStorage.get("login_timestamp")
+
+  // If we logged in less than 30 seconds ago, don't show notification
+  if (loginTimestamp && Date.now() - loginTimestamp < 30000) {
+    return false
   }
 
-  // Update the last sync timestamp
-  static updateLastSync(userId: string): void {
-    localStorage.setItem(`last_sync_${userId}`, new Date().toISOString())
+  // Get the last time we showed a notification
+  const lastNotification = SessionStorage.get("last_sync_notification")
+
+  // If we showed a notification recently, don't show another one
+  if (lastNotification && Date.now() - lastNotification < MIN_NOTIFICATION_INTERVAL) {
+    return false
   }
+
+  // Otherwise, it's okay to show a notification
+  return true
 }
