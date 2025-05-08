@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase"
 import { SessionStorage } from "@/lib/session-storage"
-import type { Subject } from "@/types/todo"
+import type { Subject, Task } from "@/types/todo"
+import { DebugUtils } from "@/lib/debug-utils"
 
 // Define a constant for the minimum time between sync notifications (10 minutes in ms)
 const MIN_NOTIFICATION_INTERVAL = 10 * 60 * 1000
@@ -13,7 +14,7 @@ export class SyncService {
       const { data, error } = await supabase.from("user_data").select("updated_at").eq("user_id", userId).single()
 
       if (error) {
-        console.error("Error checking for updates:", error)
+        DebugUtils.logError("Error checking for updates", error)
         return false
       }
 
@@ -27,7 +28,7 @@ export class SyncService {
 
       return serverUpdateTime > lastSyncTimeMs
     } catch (error) {
-      console.error("Error in checkForUpdates:", error)
+      DebugUtils.logError("Error in checkForUpdates", error)
       return false
     }
   }
@@ -37,29 +38,62 @@ export class SyncService {
     userId,
     onSuccess,
     onError,
+    localData,
   }: {
     userId: string
     onSuccess?: () => void
     onError?: (error: Error) => void
+    localData?: Subject[]
   }): Promise<Subject[] | null> {
     try {
-      console.log("Pulling changes for user:", userId)
+      DebugUtils.logSync("Pulling changes for user", userId)
       const supabase = createClient()
-      const { data, error } = await supabase.from("user_data").select("data").eq("user_id", userId).single()
+      const { data, error } = await supabase.from("user_data").select("data, updated_at").eq("user_id", userId).single()
 
       if (error) {
         if (error.code === "PGRST116") {
           // No data found, not an error
-          console.log("No data found for user:", userId)
+          DebugUtils.logSync("No data found for user", userId)
           return null
         }
-        console.error("Error pulling changes:", error)
+        DebugUtils.logError("Error pulling changes", error)
         if (onError) onError(new Error(error.message))
         return null
       }
 
       if (data && data.data) {
-        console.log("Successfully pulled data:", data.data)
+        DebugUtils.logSync("Successfully pulled data", { count: data.data.length })
+
+        // If we have local data, merge it with server data
+        if (localData) {
+          const mergedData = this.mergeData(localData, data.data, data.updated_at)
+
+          // If we had to merge, push the merged data back to the server
+          if (JSON.stringify(mergedData) !== JSON.stringify(data.data)) {
+            DebugUtils.logSync("Merged data differs from server data, pushing merged data back", {
+              localCount: localData.length,
+              serverCount: data.data.length,
+              mergedCount: mergedData.length,
+            })
+
+            // Push the merged data back to the server
+            await this.pushChanges({
+              userId,
+              data: mergedData,
+              skipNotification: true,
+            })
+          }
+
+          if (onSuccess && shouldShowSyncNotification()) {
+            onSuccess()
+          }
+
+          // Update last sync time
+          this.updateLastSync(userId)
+
+          return mergedData
+        }
+
         if (onSuccess && shouldShowSyncNotification()) {
           onSuccess()
         }
@@ -72,7 +106,7 @@ export class SyncService {
 
       return null
     } catch (error) {
-      console.error("Error in pullChanges:", error)
+      DebugUtils.logError("Error in pullChanges", error)
       if (onError) onError(error instanceof Error ? error : new Error(String(error)))
       return null
     }
@@ -84,11 +118,13 @@ export class SyncService {
     data,
     onSuccess,
     onError,
+    skipNotification = false,
   }: {
     userId: string
     data: Subject[]
     onSuccess?: () => void
     onError?: (error: Error) => void
+    skipNotification?: boolean
   }): Promise<void> {
     if (!data) {
       if (onError) onError(new Error("No data provided"))
@@ -96,25 +132,41 @@ export class SyncService {
     }
 
     try {
-      console.log("Pushing changes for user:", userId)
+      DebugUtils.logSync("Pushing changes for user", userId)
       const supabase = createClient()
 
       // First, check if the record exists
       const { data: existingData, error: checkError } = await supabase
         .from("user_data")
-        .select("id")
+        .select("id, data, updated_at")
         .eq("user_id", userId)
         .single()
 
       if (checkError && checkError.code !== "PGRST116") {
-        console.error("Error checking existing data:", checkError)
+        DebugUtils.logError("Error checking existing data", checkError)
         if (onError) onError(new Error(checkError.message))
         return
       }
 
-      // If record exists, update it
-      if (existingData) {
-        console.log("Updating existing record for user:", userId)
+      // If record exists, check if we need to merge
+      if (existingData && existingData.data) {
+        // Check if server data is newer than our last sync
+        const lastSyncTime = localStorage.getItem(`lastSync_${userId}`)
+        const serverUpdateTime = new Date(existingData.updated_at).getTime()
+        const lastSyncTimeMs = lastSyncTime ? Number.parseInt(lastSyncTime, 10) : 0
+
+        if (serverUpdateTime > lastSyncTimeMs) {
+          // Server has newer data, merge it with our data
+          DebugUtils.logSync("Server has newer data, merging", {
+            serverTime: serverUpdateTime,
+            lastSyncTime: lastSyncTimeMs,
+          })
+
+          const mergedData = this.mergeData(data, existingData.data, existingData.updated_at)
+          data = mergedData
+        }
+
+        DebugUtils.logSync("Updating existing record for user", userId)
         const { error } = await supabase
           .from("user_data")
           .update({
@@ -124,13 +176,13 @@ export class SyncService {
           .eq("user_id", userId)
 
         if (error) {
-          console.error("Error updating data:", error)
+          DebugUtils.logError("Error updating data", error)
           if (onError) onError(new Error(error.message))
           return
         }
       } else {
         // If record doesn't exist, insert it
-        console.log("Creating new record for user:", userId)
+        DebugUtils.logSync("Creating new record for user", userId)
         const { error } = await supabase.from("user_data").insert({
           user_id: userId,
           data,
@@ -138,21 +190,21 @@ export class SyncService {
         })
 
         if (error) {
-          console.error("Error inserting data:", error)
+          DebugUtils.logError("Error inserting data", error)
           if (onError) onError(new Error(error.message))
           return
         }
       }
 
-      console.log("Successfully pushed data for user:", userId)
-      if (onSuccess && shouldShowSyncNotification()) {
+      DebugUtils.logSync("Successfully pushed data for user", userId)
+      if (onSuccess && !skipNotification && shouldShowSyncNotification()) {
         onSuccess()
       }
 
       // Update last sync time
       this.updateLastSync(userId)
     } catch (error) {
-      console.error("Error in pushChanges:", error)
+      DebugUtils.logError("Error in pushChanges", error)
       if (onError) onError(error instanceof Error ? error : new Error(String(error)))
     }
   }
@@ -170,16 +222,16 @@ export class SyncService {
     onError?: (error: Error) => void
   }): Promise<void> {
     if (!data || !userId) {
-      console.error("Missing data or userId for immediate sync")
+      DebugUtils.logError("Missing data or userId for immediate sync", { userId, hasData: !!data })
       if (onError) onError(new Error("Missing data or userId"))
       return
     }
 
     try {
-      console.log("Immediate sync for user:", userId)
+      DebugUtils.logSync("Immediate sync for user", userId)
       await this.pushChanges({ userId, data, onSuccess, onError })
     } catch (error) {
-      console.error("Error in immediateSync:", error)
+      DebugUtils.logError("Error in immediateSync", error)
       if (onError) onError(error instanceof Error ? error : new Error(String(error)))
     }
   }
@@ -191,6 +243,89 @@ export class SyncService {
 
     // Also store the last notification time
     SessionStorage.set("last_sync_notification", now)
+  }
+
+  // Merge local and server data
+  static mergeData(localData: Subject[], serverData: Subject[], serverUpdatedAt: string): Subject[] {
+    DebugUtils.logSync("Merging data", {
+      localSubjects: localData.length,
+      serverSubjects: serverData.length,
+    })
+
+    // Create a deep copy of server data to start with
+    const mergedData = JSON.parse(JSON.stringify(serverData)) as Subject[]
+
+    // Create maps for faster lookups
+    const serverSubjectMap = new Map(mergedData.map((subject) => [subject.id, subject]))
+
+    // Process each local subject
+    localData.forEach((localSubject) => {
+      const serverSubject = serverSubjectMap.get(localSubject.id)
+
+      if (!serverSubject) {
+        // Subject exists only locally, add it to merged data
+        DebugUtils.logSync(`Adding new local subject to merged data: ${localSubject.name}`)
+        mergedData.push(JSON.parse(JSON.stringify(localSubject)))
+        return
+      }
+
+      // Subject exists in both, merge units
+      localSubject.units.forEach((localUnit) => {
+        const serverUnit = serverSubject.units.find((u) => u.id === localUnit.id)
+
+        if (!serverUnit) {
+          // Unit exists only locally, add it to server subject
+          DebugUtils.logSync(`Adding new local unit to subject ${localSubject.name}: ${localUnit.name}`)
+          serverSubject.units.push(JSON.parse(JSON.stringify(localUnit)))
+          return
+        }
+
+        // Unit exists in both, merge subtopics
+        localUnit.subtopics.forEach((localSubtopic) => {
+          const serverSubtopic = serverUnit.subtopics.find((s) => s.id === localSubtopic.id)
+
+          if (!serverSubtopic) {
+            // Subtopic exists only locally, add it to server unit
+            DebugUtils.logSync(`Adding new local subtopic to unit ${localUnit.name}: ${localSubtopic.name}`)
+            serverUnit.subtopics.push(JSON.parse(JSON.stringify(localSubtopic)))
+            return
+          }
+
+          // Subtopic exists in both, merge tasks
+          this.mergeTasks(localSubtopic.tasks, serverSubtopic.tasks)
+        })
+      })
+    })
+
+    return mergedData
+  }
+
+  // Merge tasks between local and server
+  static mergeTasks(localTasks: Task[], serverTasks: Task[]): void {
+    // Create a map of server tasks by ID for faster lookup
+    const serverTaskMap = new Map(serverTasks.map((task) => [task.id, task]))
+
+    // Process each local task
+    localTasks.forEach((localTask) => {
+      const serverTask = serverTaskMap.get(localTask.id)
+
+      if (!serverTask) {
+        // Task exists only locally, add it to server tasks
+        DebugUtils.logSync(`Adding new local task: ${localTask.text}`)
+        serverTasks.push(JSON.parse(JSON.stringify(localTask)))
+        return
+      }
+
+      // Task exists in both, use the most recently updated one
+      const localCreatedAt = new Date(localTask.createdAt).getTime()
+      const serverCreatedAt = new Date(serverTask.createdAt).getTime()
+
+      // If local task is newer or was modified more recently, update server task
+      if (localCreatedAt > serverCreatedAt) {
+        DebugUtils.logSync(`Updating server task with newer local task: ${localTask.text}`)
+        Object.assign(serverTask, JSON.parse(JSON.stringify(localTask)))
+      }
+    })
   }
 }
 
